@@ -1,5 +1,7 @@
+# storyboard_generator/main.py
+
 import tkinter as tk
-from app import StoryboardApp
+from storyboard_generator.app import StoryboardApp
 
 def main():
     """Main entry point for the Storyboard Generator application."""
