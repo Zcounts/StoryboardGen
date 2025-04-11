@@ -1,15 +1,17 @@
-# app.py
-
+# storyboard_generator/app.py
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
 import json
+import copy
 from PIL import Image, ImageTk
 
 # Use relative imports for modules in the same package
 from .pdf_exporter import PDFExporter
 from .panel import Panel
 from .panel_editor import PanelEditor
+from .panels_list import PanelsList
+from .pdf_preview import PDFPreview
 
 class StoryboardApp:
     """Main application class for the Storyboard Generator."""
@@ -22,6 +24,14 @@ class StoryboardApp:
         self.panels = []
         self.current_panel_index = -1
         
+        # Set theme colors
+        self.bg_color = "#1E1E1E"  # Dark background
+        self.text_color = "#FFFFFF"  # White text
+        self.accent_color = "#2D2D30"  # Slightly lighter than background
+        
+        # Configure styles
+        self._setup_styles()
+        
         # Create the main UI components
         self._create_menu()
         self._create_main_frame()
@@ -29,13 +39,32 @@ class StoryboardApp:
         # Set up initial state
         self._new_project()
     
+    def _setup_styles(self):
+        """Set up custom styles for the UI."""
+        style = ttk.Style()
+        
+        # Configure dark theme styles
+        style.configure("TFrame", background=self.bg_color)
+        style.configure("TLabel", background=self.bg_color, foreground=self.text_color)
+        style.configure("TButton", background=self.accent_color, foreground=self.text_color)
+        style.configure("TEntry", fieldbackground=self.accent_color, foreground=self.text_color)
+        style.configure("TNotebook", background=self.bg_color)
+        style.configure("TNotebook.Tab", background=self.accent_color, foreground=self.text_color, padding=[10, 2])
+        style.map("TNotebook.Tab",
+            background=[("selected", self.accent_color)],
+            foreground=[("selected", self.text_color)]
+        )
+        
+        # Configure styles for specific widgets
+        style.configure("PanedWindow", background=self.bg_color)
+    
     def _create_menu(self):
         """Create the application menu bar."""
-        menubar = tk.Menu(self.master)
+        menubar = tk.Menu(self.master, bg=self.accent_color, fg=self.text_color)
         self.master.config(menu=menubar)
         
         # File menu
-        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu = tk.Menu(menubar, tearoff=0, bg=self.accent_color, fg=self.text_color)
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="New Project", command=self._new_project)
         file_menu.add_command(label="Open Project", command=self._open_project)
@@ -47,82 +76,81 @@ class StoryboardApp:
     
     def _create_main_frame(self):
         """Create the main application frame."""
-        # Create main frame with left and right panes
-        self.main_frame = ttk.PanedWindow(self.master, orient=tk.HORIZONTAL)
-        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Configure the main window
+        self.master.configure(bg=self.bg_color)
+        
+        # Create main horizontal pane for left panel list and right content
+        self.main_paned = ttk.PanedWindow(self.master, orient=tk.HORIZONTAL)
+        self.main_paned.pack(fill=tk.BOTH, expand=True)
         
         # Left frame - Panels list
-        self.left_frame = ttk.Frame(self.main_frame)
-        self.main_frame.add(self.left_frame, weight=1)
+        self.left_frame = ttk.Frame(self.main_paned)
+        self.main_paned.add(self.left_frame, weight=1)
         
-        # Right frame - Panel editor
-        self.right_frame = ttk.Frame(self.main_frame)
-        self.main_frame.add(self.right_frame, weight=3)
+        # Right frame - Panel editor and preview
+        self.right_paned = ttk.PanedWindow(self.main_paned, orient=tk.HORIZONTAL)
+        self.main_paned.add(self.right_paned, weight=3)
+        
+        # Editor frame
+        self.editor_frame = ttk.Frame(self.right_paned)
+        self.right_paned.add(self.editor_frame, weight=1)
+        
+        # Preview frame
+        self.preview_frame = ttk.Frame(self.right_paned)
+        self.right_paned.add(self.preview_frame, weight=1)
         
         # Set up panels list
         self._setup_panels_list()
         
         # Set up panel editor
         self._setup_panel_editor()
+        
+        # Set up preview pane
+        self._setup_preview_pane()
     
     def _setup_panels_list(self):
         """Set up the panels list in the left frame."""
-        # Panel list label
-        ttk.Label(self.left_frame, text="Storyboard Panels").pack(pady=(0, 5), anchor=tk.W)
-        
-        # Create a listbox frame
-        list_frame = ttk.Frame(self.left_frame)
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        
-        # Add a scrollbar
-        scrollbar = ttk.Scrollbar(list_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Create the listbox
-        self.panels_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set)
-        self.panels_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.panels_listbox.yview)
-        
-        # Bind selection event
-        self.panels_listbox.bind('<<ListboxSelect>>', self._on_panel_select)
-        
-        # Button frame for panel management
-        button_frame = ttk.Frame(self.left_frame)
-        button_frame.pack(fill=tk.X, padx=5, pady=5)
-        
-        # Add panel button
-        add_button = ttk.Button(button_frame, text="Add", command=self._add_panel)
-        add_button.pack(side=tk.LEFT, padx=2)
-        
-        # Delete panel button
-        delete_button = ttk.Button(button_frame, text="Delete", command=self._delete_panel)
-        delete_button.pack(side=tk.LEFT, padx=2)
-        
-        # Move up button
-        up_button = ttk.Button(button_frame, text="Up", command=self._move_panel_up)
-        up_button.pack(side=tk.LEFT, padx=2)
-        
-        # Move down button
-        down_button = ttk.Button(button_frame, text="Down", command=self._move_panel_down)
-        down_button.pack(side=tk.LEFT, padx=2)
+        # Create the custom panels list
+        self.panels_list = PanelsList(
+            self.left_frame,
+            on_select=self._on_panel_select,
+            on_add=self.add_panel,
+            on_delete=self.delete_panel,
+            on_move_up=self.move_panel_up,
+            on_move_down=self.move_panel_down,
+            on_duplicate=self.duplicate_panel
+        )
+        self.panels_list.pack(fill=tk.BOTH, expand=True)
     
     def _setup_panel_editor(self):
         """Set up the panel editor in the right frame."""
         # Panel editor title
-        ttk.Label(self.right_frame, text="Panel Editor").pack(pady=(0, 10), anchor=tk.W)
+        ttk.Label(self.editor_frame, text="Panel Editor").pack(pady=(10, 5), padx=10, anchor=tk.W)
         
         # Create the panel editor
-        self.panel_editor = PanelEditor(self.right_frame, on_panel_update=self._on_panel_update)
-        self.panel_editor.pack(fill=tk.BOTH, expand=True)
+        self.panel_editor = PanelEditor(self.editor_frame, on_panel_update=self._on_panel_update)
+        self.panel_editor.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
         # Initially disable the panel editor
         self._update_panel_editor()
+    
+    def _setup_preview_pane(self):
+        """Set up the PDF preview pane."""
+        # Create PDF exporter
+        self.pdf_exporter = PDFExporter()
+        
+        # Create the preview widget
+        self.pdf_preview = PDFPreview(self.preview_frame, pdf_exporter=self.pdf_exporter)
+        self.pdf_preview.pack(fill=tk.BOTH, expand=True)
     
     def _on_panel_update(self, panel):
         """Handle panel update event from the editor."""
         if panel and panel in self.panels:
             # Update the panels list to reflect changes
             self._update_panels_list()
+            
+            # Update the preview
+            self._update_preview()
     
     def _update_panel_editor(self):
         """Update the panel editor with the currently selected panel."""
@@ -133,6 +161,15 @@ class StoryboardApp:
             # No panel selected, clear the editor
             self.panel_editor.load_panel(None)
     
+    def _update_preview(self):
+        """Update the PDF preview."""
+        if 0 <= self.current_panel_index < len(self.panels):
+            # Show preview of the selected panel
+            self.pdf_preview.update_preview(self.panels[self.current_panel_index])
+        else:
+            # No panel selected, clear the preview
+            self.pdf_preview.update_preview(None)
+    
     def _new_project(self):
         """Create a new project."""
         self.current_project = None
@@ -141,6 +178,10 @@ class StoryboardApp:
         self.current_panel_index = -1
         self._update_panels_list()
         self._update_panel_editor()
+        self._update_preview()
+        
+        # Update window title
+        self.master.title("Storyboard Generator")
     
     def _open_project(self):
         """Open an existing project."""
@@ -172,13 +213,14 @@ class StoryboardApp:
                 panel = Panel.from_dict(panel_data, project_dir)
                 self.panels.append(panel)
             
-            # Sort panels by order
-            self.panels.sort(key=lambda p: p.order)
+            # Assign shot letters if missing
+            self._update_shot_letters()
             
             # Update UI
             self._update_panels_list()
             self.current_panel_index = 0 if self.panels else -1
             self._update_panel_editor()
+            self._update_preview()
             
             # Update window title
             self.master.title(f"Storyboard Generator - {self.current_project}")
@@ -284,7 +326,45 @@ class StoryboardApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open file: {str(e)}")
     
-    def _add_panel(self):
+    def _update_shot_letters(self):
+        """Update shot letters based on scene groups."""
+        # Group panels by scene
+        scene_groups = {}
+        for panel in self.panels:
+            scene_number = panel.scene_number
+            if scene_number not in scene_groups:
+                scene_groups[scene_number] = []
+            scene_groups[scene_number].append(panel)
+        
+        # For each scene, assign shot letters
+        for scene_number, scene_panels in scene_groups.items():
+            # Sort by order within scene
+            scene_panels.sort(key=lambda p: p.order)
+            
+            # Assign shot letters A, B, C, etc.
+            for i, panel in enumerate(scene_panels):
+                panel.shot_number = self._get_shot_letter(i)
+    
+    def _get_shot_letter(self, index):
+        """
+        Get shot letter for a given index.
+        A, B, C, ... Z, AA, BB, etc.
+        
+        Args:
+            index: The 0-based index of the shot
+        
+        Returns:
+            str: The shot letter
+        """
+        if index < 26:
+            # A-Z
+            return chr(65 + index)
+        else:
+            # AA, BB, etc.
+            letter_index = (index - 26) // 26
+            return chr(65 + letter_index) * 2
+    
+    def add_panel(self):
         """Add a new panel to the storyboard."""
         # Create a new panel
         panel = Panel()
@@ -298,23 +378,32 @@ class StoryboardApp:
         # Add to the list
         self.panels.append(panel)
         
+        # Update shot letters
+        self._update_shot_letters()
+        
         # Update UI
         self._update_panels_list()
         
         # Select the new panel
         self.current_panel_index = len(self.panels) - 1
-        self.panels_listbox.selection_clear(0, tk.END)
-        self.panels_listbox.selection_set(self.current_panel_index)
-        self.panels_listbox.see(self.current_panel_index)
+        self.panels_list.select_panel(self.current_panel_index)
         
-        # Update editor
+        # Update editor and preview
         self._update_panel_editor()
+        self._update_preview()
     
-    def _delete_panel(self):
+    def delete_panel(self):
         """Delete the selected panel."""
         if 0 <= self.current_panel_index < len(self.panels):
+            # Ask for confirmation
+            if not messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this panel?"):
+                return
+                
             # Remove the panel
             del self.panels[self.current_panel_index]
+            
+            # Update shot letters
+            self._update_shot_letters()
             
             # Update UI
             self._update_panels_list()
@@ -323,78 +412,123 @@ class StoryboardApp:
             if self.panels:
                 if self.current_panel_index >= len(self.panels):
                     self.current_panel_index = len(self.panels) - 1
-                self.panels_listbox.selection_set(self.current_panel_index)
+                self.panels_list.select_panel(self.current_panel_index)
             else:
                 self.current_panel_index = -1
             
-            # Update editor
+            # Update editor and preview
             self._update_panel_editor()
+            self._update_preview()
     
-    def _move_panel_up(self):
+    def duplicate_panel(self):
+        """Duplicate the selected panel."""
+        if 0 <= self.current_panel_index < len(self.panels):
+            # Get the current panel
+            current_panel = self.panels[self.current_panel_index]
+            
+            # Create a new panel as a copy
+            new_panel = Panel()
+            new_panel.scene_number = current_panel.scene_number
+            new_panel.camera = current_panel.camera
+            new_panel.lens = current_panel.lens
+            new_panel.size = current_panel.size
+            new_panel.type = current_panel.type
+            new_panel.move = current_panel.move
+            new_panel.equip = current_panel.equip
+            new_panel.action = current_panel.action
+            new_panel.bgd = current_panel.bgd
+            new_panel.bgd_notes = current_panel.bgd_notes
+            new_panel.hair_makeup = current_panel.hair_makeup
+            new_panel.props = current_panel.props
+            new_panel.vfx = current_panel.vfx
+            new_panel.description = current_panel.description
+            new_panel.notes = current_panel.notes
+            
+            # Copy image if exists
+            if current_panel.image_path and os.path.exists(current_panel.image_path):
+                try:
+                    new_panel.set_image(current_panel.image_path, self.project_dir)
+                except:
+                    pass
+            
+            # Insert after current panel
+            self.panels.insert(self.current_panel_index + 1, new_panel)
+            
+            # Update shot letters
+            self._update_shot_letters()
+            
+            # Update UI
+            self._update_panels_list()
+            
+            # Select the new panel
+            self.current_panel_index += 1
+            self.panels_list.select_panel(self.current_panel_index)
+            
+            # Update editor and preview
+            self._update_panel_editor()
+            self._update_preview()
+    
+    def move_panel_up(self):
         """Move the selected panel up in the order."""
         if 0 < self.current_panel_index < len(self.panels):
             # Swap with the previous panel
             self.panels[self.current_panel_index], self.panels[self.current_panel_index-1] = \
                 self.panels[self.current_panel_index-1], self.panels[self.current_panel_index]
             
+            # Update shot letters
+            self._update_shot_letters()
+            
             # Update UI
             self._update_panels_list()
             
             # Update selection
             self.current_panel_index -= 1
-            self.panels_listbox.selection_clear(0, tk.END)
-            self.panels_listbox.selection_set(self.current_panel_index)
+            self.panels_list.select_panel(self.current_panel_index)
             
             # Update panel orders
             for i, panel in enumerate(self.panels):
                 panel.order = i
+            
+            # Update preview
+            self._update_preview()
     
-    def _move_panel_down(self):
+    def move_panel_down(self):
         """Move the selected panel down in the order."""
         if 0 <= self.current_panel_index < len(self.panels) - 1:
             # Swap with the next panel
             self.panels[self.current_panel_index], self.panels[self.current_panel_index+1] = \
                 self.panels[self.current_panel_index+1], self.panels[self.current_panel_index]
             
+            # Update shot letters
+            self._update_shot_letters()
+            
             # Update UI
             self._update_panels_list()
             
             # Update selection
             self.current_panel_index += 1
-            self.panels_listbox.selection_clear(0, tk.END)
-            self.panels_listbox.selection_set(self.current_panel_index)
+            self.panels_list.select_panel(self.current_panel_index)
             
             # Update panel orders
             for i, panel in enumerate(self.panels):
                 panel.order = i
-    
-    def _on_panel_select(self, event):
-        """Handle panel selection event."""
-        selection = self.panels_listbox.curselection()
-        
-        if selection:
-            # Get the selected index
-            selected_index = selection[0]
             
-            if 0 <= selected_index < len(self.panels):
-                # Update the current panel index
-                self.current_panel_index = selected_index
-                
-                # Update the panel editor
-                self._update_panel_editor()
+            # Update preview
+            self._update_preview()
+    
+    def _on_panel_select(self, index):
+        """Handle panel selection event."""
+        if 0 <= index < len(self.panels):
+            # Update the current panel index
+            self.current_panel_index = index
+            
+            # Update the panel editor
+            self._update_panel_editor()
+            
+            # Update preview
+            self._update_preview()
     
     def _update_panels_list(self):
         """Update the panels list in the UI."""
-        # Clear the current list
-        self.panels_listbox.delete(0, tk.END)
-        
-        # Add all panels
-        for i, panel in enumerate(self.panels):
-            display_text = f"Shot {i+1}"
-            if panel.shot_number:
-                display_text = f"Shot {panel.shot_number}"
-            self.panels_listbox.insert(tk.END, display_text)
-        
-        # Update selection
-        if 0 <= self.current_panel_index < len(self.panels):
-            self.panels_listbox.selection_set(self.current_panel_index)
+        # Update the custom panels list
+        self.panels_list.update_panels(self.panels)
