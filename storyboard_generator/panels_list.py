@@ -36,6 +36,8 @@ class PanelsList(ttk.Frame):
         self.text_color = "#FFFFFF"  # White text
         self.accent_color = "#2D2D30"  # Slightly lighter than background
         self.selected_color = "#007ACC"  # Blue for selection
+        self.hover_color = "#3E3E42"  # Color for hover effect
+        self.item_bg_color = "#252526"  # Slightly lighter than background for items
         
         # Create UI elements
         self._create_toolbar()
@@ -92,7 +94,7 @@ class PanelsList(ttk.Frame):
         scrollbar.config(command=self.canvas.yview)
         
         # Create a frame inside the canvas to hold panel items
-        self.panels_frame = ttk.Frame(self.canvas, style="TFrame")
+        self.panels_frame = ttk.Frame(self.canvas)
         self.canvas_window = self.canvas.create_window(
             (0, 0), window=self.panels_frame, anchor="nw", tags="self.panels_frame"
         )
@@ -162,9 +164,17 @@ class PanelsList(ttk.Frame):
             # Update the visual selection in the UI
             for i, frame in enumerate(self.panels_frame.winfo_children()):
                 if i == index:
+                    # Use a custom frame with background color for selected item
                     frame.configure(style="Selected.TFrame")
+                    for child in frame.winfo_children():
+                        if isinstance(child, ttk.Label):
+                            child.configure(style="Selected.TLabel")
                 else:
+                    # Use standard style for unselected items
                     frame.configure(style="TFrame")
+                    for child in frame.winfo_children():
+                        if isinstance(child, ttk.Label):
+                            child.configure(style="TLabel")
     
     def update_panels(self, panels):
         """
@@ -202,23 +212,37 @@ class PanelsList(ttk.Frame):
             index: Index of the panel
             panel: Panel object
         """
-        # Create a frame for this panel item
+        # Create a frame for this panel item with proper styling
         item_style = "Selected.TFrame" if index == self.selected_index else "TFrame"
         item_frame = ttk.Frame(self.panels_frame, style=item_style, padding=5)
+        
+        # Add hover effect
+        def on_enter(e, frame=item_frame):
+            if frame.cget('style') != "Selected.TFrame":
+                frame.configure(style="Hover.TFrame")
+                
+        def on_leave(e, frame=item_frame):
+            if frame.cget('style') != "Selected.TFrame":
+                frame.configure(style="TFrame")
+        
+        item_frame.bind("<Enter>", on_enter)
+        item_frame.bind("<Leave>", on_leave)
+        
         item_frame.pack(fill=tk.X, padx=5, pady=2)
         
         # Make the frame selectable by clicking
         item_frame.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i))
         
         # Create a horizontal layout
-        info_frame = ttk.Frame(item_frame, style="TFrame")
+        info_frame = ttk.Frame(item_frame, style=item_style)
         info_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
-        # Add shot number label
+        # Add shot number label with proper styling
+        label_style = "Selected.TLabel" if index == self.selected_index else "TLabel"
         shot_label = ttk.Label(
             info_frame, 
             text=f"Scene {panel.scene_number}{panel.shot_number}",
-            style="TLabel",
+            style=label_style,
             font=("Arial", 10, "bold")
         )
         shot_label.pack(anchor=tk.W)
@@ -227,18 +251,18 @@ class PanelsList(ttk.Frame):
         if panel.description:
             # Limit to first 50 chars
             preview = panel.description[:50] + "..." if len(panel.description) > 50 else panel.description
-            desc_label = ttk.Label(info_frame, text=preview, style="TLabel")
+            desc_label = ttk.Label(info_frame, text=preview, style=label_style)
             desc_label.pack(anchor=tk.W)
         
         # Add camera info
-        camera_label = ttk.Label(info_frame, text=f"Camera: {panel.camera}", style="TLabel")
+        camera_label = ttk.Label(info_frame, text=f"Camera: {panel.camera}", style=label_style)
         camera_label.pack(anchor=tk.W)
         
         # Add thumbnail if available
         thumbnail = panel.get_thumbnail()
         if thumbnail:
             self.thumbnails.append(thumbnail)  # Keep reference
-            thumb_label = ttk.Label(item_frame, image=thumbnail, style="TLabel")
+            thumb_label = ttk.Label(item_frame, image=thumbnail, style=label_style)
             thumb_label.pack(side=tk.RIGHT, padx=5)
             
             # Also make thumbnail clickable
