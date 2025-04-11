@@ -190,19 +190,21 @@ class PDFPreview(ttk.Frame):
         if self.current_page > 0:
             self.current_page -= 1
             self._draw_page(self.current_page)
+            self.page_label.config(text=f"Page: {self.current_page + 1} / {self.total_pages}")
     
     def _next_page(self):
         """Navigate to the next page."""
         if self.current_page < self.total_pages - 1:
             self.current_page += 1
             self._draw_page(self.current_page)
+            self.page_label.config(text=f"Page: {self.current_page + 1} / {self.total_pages}")
     
     def update_preview(self, selected_panel=None):
         """
         Update the preview with all panels from the app.
         
         Args:
-            selected_panel: The Panel object that was selected, or None to clear
+            selected_panel: The Panel object that was selected (used to determine current page)
         """
         # Clear canvas
         self.preview_canvas.delete("all")
@@ -269,6 +271,9 @@ class PDFPreview(ttk.Frame):
         page_display_width = int(page_width * scale)
         page_display_height = int(page_height * scale)
         
+        # Determine base font size based on fixed size - not affected by zoom
+        base_font_size = 12
+        
         # Draw page background
         self.preview_canvas.create_rectangle(
             (display_width - page_display_width) // 2,
@@ -283,49 +288,60 @@ class PDFPreview(ttk.Frame):
         # Draw title
         title_text = f"Storyboard Preview - Page {page_number + 1} of {self.total_pages}"
         title_x = display_width // 2
-        title_y = (display_height - page_display_height) // 2 + 20
-        
-        # Calculate scaling for text (independent of zoom)
-        font_size = int(self.base_font_size * scale)
+        title_y = (display_height - page_display_height) // 2 + 20 * scale
         
         self.preview_canvas.create_text(
             title_x, title_y,
             text=title_text,
             fill="black",
-            font=("Arial", font_size * 2, "bold")
+            font=("Arial", int(base_font_size * 2 * scale), "bold")
         )
         
         # Draw camera color legend
-        legend_y = title_y + 25
-        legend_x = (display_width - page_display_width) // 2 + 50
+        legend_y = title_y + 25 * scale
+        legend_x = (display_width - page_display_width) // 2 + 30 * scale
         
+        # Draw legend title
         legend_title = "Camera Colors:"
         self.preview_canvas.create_text(
             legend_x, legend_y,
             text=legend_title,
             fill="black",
-            font=("Arial", font_size + 2, "bold"),
+            font=("Arial", int(base_font_size * scale), "bold"),
             anchor="w"
         )
         
+        # Draw camera legend entries
+        legend_spacing = 120 * scale
         for i, (camera, color) in enumerate(self.camera_colors.items()):
-            # Draw color box
-            box_x = legend_x + (i * 100 * scale)
-            box_y = legend_y + 20
+            box_x = legend_x + (i % 3) * legend_spacing
+            box_y = legend_y + 20 * scale + (i // 3) * 20 * scale
             
+            # Draw color box
             self.preview_canvas.create_rectangle(
                 box_x, box_y,
-                box_x + 15, box_y + 15,
+                box_x + 15 * scale, box_y + 15 * scale,
                 fill=color,
                 outline="black"
             )
             
-            # Draw camera name
+            # Draw camera name and custom name if available
+            camera_label = camera
+            camera_names = []
+            
+            for panel in self.all_panels:
+                if panel.camera == camera and hasattr(panel, 'camera_name') and panel.camera_name:
+                    if panel.camera_name not in camera_names:
+                        camera_names.append(panel.camera_name)
+            
+            if camera_names:
+                camera_label += f" ({', '.join(camera_names)})"
+                
             self.preview_canvas.create_text(
-                box_x + 25, box_y + 7,
-                text=camera,
+                box_x + 25 * scale, box_y + 7 * scale,
+                text=camera_label,
                 fill="black",
-                font=("Arial", font_size, "normal"),
+                font=("Arial", int(base_font_size * 0.8 * scale), "normal"),
                 anchor="w"
             )
         
@@ -338,8 +354,10 @@ class PDFPreview(ttk.Frame):
         if page_panels:
             # Calculate panel size and positions
             margin = 20 * scale
+            legend_height = 60 * scale  # Space for the legend at the top
+            grid_top = (display_height - page_display_height) // 2 + margin + legend_height
             grid_width = page_display_width - (2 * margin)
-            grid_height = page_display_height - 100 * scale  # Leave space for title and margin
+            grid_height = page_display_height - legend_height - (2 * margin)
             
             panel_width = grid_width // 3
             panel_height = grid_height // 2
@@ -351,9 +369,9 @@ class PDFPreview(ttk.Frame):
                 
                 # Calculate position
                 x1 = (display_width - page_display_width) // 2 + margin + col * panel_width
-                y1 = (display_height - page_display_height) // 2 + 80 * scale + row * panel_height
-                x2 = x1 + panel_width - 5
-                y2 = y1 + panel_height - 5
+                y1 = grid_top + row * panel_height
+                x2 = x1 + panel_width - 5 * scale
+                y2 = y1 + panel_height - 5 * scale
                 
                 # Get shot letter for color
                 shot_letter = panel.shot_number[0] if panel.shot_number else ""
@@ -379,34 +397,33 @@ class PDFPreview(ttk.Frame):
                     outline=camera_color
                 )
                 
-                # Calculate header text size (relative to panel, not zoom)
-                header_font_size = int(font_size * 0.9)
-                
-                # Add shot number and camera text (camera name hidden as requested)
+                # Add shot number and setup text
                 shot_text = f"{panel.scene_number}{panel.shot_number}"
                 self.preview_canvas.create_text(
-                    x1 + 5, y1 + header_height // 2,
+                    x1 + 5 * scale, y1 + header_height // 2,
                     text=shot_text,
                     fill=self.text_color,
-                    font=("Arial", header_font_size, "bold"),
+                    font=("Arial", int(base_font_size * 0.9 * scale), "bold"),
                     anchor="w"
                 )
                 
-                # Add lens info if available
-                if panel.lens:
+                # Add setup info
+                setup_text = f"Setup {panel.setup_number}" if hasattr(panel, 'setup_number') and panel.setup_number else ""
+                if setup_text:
                     self.preview_canvas.create_text(
-                        x2 - 5, y1 + header_height // 2,
-                        text=f"{panel.lens}",
+                        x2 - 5 * scale, y1 + header_height // 2,
+                        text=setup_text,
                         fill=self.text_color,
-                        font=("Arial", header_font_size),
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
                         anchor="e"
                     )
                 
-                # Draw image area outline
-                img_height = panel_height // 3
+                # Draw image area
+                img_y = y1 + header_height + 5 * scale
+                img_height = panel_height * 0.45
                 self.preview_canvas.create_rectangle(
-                    x1 + 5, y1 + header_height + 5, 
-                    x2 - 5, y1 + header_height + 5 + img_height,
+                    x1 + 5 * scale, img_y, 
+                    x2 - 5 * scale, img_y + img_height,
                     outline="#555555",
                     fill="#444444",
                     width=1
@@ -416,18 +433,18 @@ class PDFPreview(ttk.Frame):
                 if not (panel.image and panel.image_path and os.path.exists(panel.image_path)):
                     self.preview_canvas.create_text(
                         (x1 + x2) // 2, 
-                        y1 + header_height + 5 + (img_height // 2),
+                        img_y + (img_height // 2),
                         text="No Image",
                         fill="#AAAAAA",
-                        font=("Arial", header_font_size)
+                        font=("Arial", int(base_font_size * 0.9 * scale))
                     )
                 else:
-                    # Try to show a small thumbnail of the image
+                    # Try to show a thumbnail of the image
                     try:
                         img = panel.image.copy()
-                        thumb_width = panel_width - 20
-                        thumb_height = img_height - 10
-                        img.thumbnail((thumb_width, thumb_height), Image.LANCZOS)
+                        thumb_width = panel_width - 20 * scale
+                        thumb_height = img_height - 10 * scale
+                        img.thumbnail((int(thumb_width), int(thumb_height)), Image.LANCZOS)
                         photo = ImageTk.PhotoImage(img)
                         
                         # Store the photo to prevent garbage collection
@@ -436,25 +453,25 @@ class PDFPreview(ttk.Frame):
                         # Create image on canvas
                         self.preview_canvas.create_image(
                             (x1 + x2) // 2, 
-                            y1 + header_height + 5 + (img_height // 2),
+                            img_y + (img_height // 2),
                             image=photo
                         )
                     except Exception as e:
                         # If image display fails, show error text
                         self.preview_canvas.create_text(
                             (x1 + x2) // 2, 
-                            y1 + header_height + 5 + (img_height // 2),
+                            img_y + (img_height // 2),
                             text="Image Error",
                             fill="#FF6666",
-                            font=("Arial", header_font_size)
+                            font=("Arial", int(base_font_size * 0.9 * scale))
                         )
                 
                 # Draw technical info section
-                tech_y = y1 + header_height + 5 + img_height + 5
+                tech_y = img_y + img_height + 5 * scale
                 tech_height = 30 * scale
                 self.preview_canvas.create_rectangle(
-                    x1 + 5, tech_y, 
-                    x2 - 5, tech_y + tech_height,
+                    x1 + 5 * scale, tech_y, 
+                    x2 - 5 * scale, tech_y + tech_height,
                     outline="#555555",
                     fill="#222222",
                     width=1
@@ -469,59 +486,81 @@ class PDFPreview(ttk.Frame):
                     panel.equip or "STICKS"
                 ]
                 
-                tech_font_size = int(font_size * 0.7)
-                col_width = (panel_width - 10) // 4
+                col_width = (panel_width - 10 * scale) / 4
                 for j, (header, value) in enumerate(zip(tech_headers, tech_values)):
                     # Header
                     self.preview_canvas.create_text(
-                        x1 + 5 + j * col_width + col_width // 2, 
+                        x1 + 5 * scale + j * col_width + col_width / 2, 
                         tech_y + 8 * scale,
                         text=header,
                         fill="#AAAAAA",
-                        font=("Arial", tech_font_size),
+                        font=("Arial", int(base_font_size * 0.7 * scale)),
                         anchor="center"
                     )
                     
                     # Value
                     self.preview_canvas.create_text(
-                        x1 + 5 + j * col_width + col_width // 2, 
+                        x1 + 5 * scale + j * col_width + col_width / 2, 
                         tech_y + 8 * scale + 14 * scale,
                         text=value,
                         fill="#DDDDDD",
-                        font=("Arial", tech_font_size),
+                        font=("Arial", int(base_font_size * 0.7 * scale)),
                         anchor="center"
                     )
                 
                 # Action and description area
-                action_y = tech_y + tech_height + 5
-                desc_font_size = int(font_size * 0.8)
+                desc_y = tech_y + tech_height + 5 * scale
+                desc_height = y2 - desc_y - 5 * scale
                 
+                # Display action, description, and notes
+                text_padding = 8 * scale
+                text_y = desc_y + text_padding
+                text_font_size = int(base_font_size * 0.8 * scale)
+                line_height = text_font_size + 4
+                
+                # Action
                 if panel.action:
                     action_text = f"ACTION: {panel.action}"
-                    if len(action_text) > 40:
-                        action_text = action_text[:37] + "..."
+                    if len(action_text) > 30:
+                        action_text = action_text[:27] + "..."
                         
                     self.preview_canvas.create_text(
-                        x1 + 10, action_y,
+                        x1 + 10 * scale, text_y,
                         text=action_text,
                         fill="black",
-                        font=("Arial", desc_font_size),
+                        font=("Arial", text_font_size),
                         anchor="nw"
                     )
-                    action_y += 15 * scale
+                    text_y += line_height
                 
-                if panel.description:
-                    desc_text = panel.description
-                    if len(desc_text) > 100:
-                        desc_text = desc_text[:97] + "..."
+                # Subject
+                if hasattr(panel, 'subject') and panel.subject:
+                    subject_text = f"SUBJECT: {panel.subject}"
+                    if len(subject_text) > 30:
+                        subject_text = subject_text[:27] + "..."
                         
                     self.preview_canvas.create_text(
-                        x1 + 10, action_y,
+                        x1 + 10 * scale, text_y,
+                        text=subject_text,
+                        fill="black",
+                        font=("Arial", text_font_size),
+                        anchor="nw"
+                    )
+                    text_y += line_height
+                
+                # Description
+                if panel.description:
+                    desc_text = panel.description
+                    max_chars = 40
+                    if len(desc_text) > max_chars:
+                        desc_text = desc_text[:max_chars-3] + "..."
+                        
+                    self.preview_canvas.create_text(
+                        x1 + 10 * scale, text_y,
                         text=desc_text,
                         fill="black",
-                        font=("Arial", desc_font_size),
-                        anchor="nw",
-                        width=panel_width - 20
+                        font=("Arial", text_font_size),
+                        anchor="nw"
                     )
         
         # Draw empty panels for remaining slots if needed
@@ -531,16 +570,18 @@ class PDFPreview(ttk.Frame):
             
             # Calculate position
             margin = 20 * scale
+            legend_height = 60 * scale  # Space for the legend at the top
+            grid_top = (display_height - page_display_height) // 2 + margin + legend_height
             grid_width = page_display_width - (2 * margin)
-            grid_height = page_display_height - 100 * scale
+            grid_height = page_display_height - legend_height - (2 * margin)
             
             panel_width = grid_width // 3
             panel_height = grid_height // 2
             
             x1 = (display_width - page_display_width) // 2 + margin + col * panel_width
-            y1 = (display_height - page_display_height) // 2 + 80 * scale + row * panel_height
-            x2 = x1 + panel_width - 5
-            y2 = y1 + panel_height - 5
+            y1 = grid_top + row * panel_height
+            x2 = x1 + panel_width - 5 * scale
+            y2 = y1 + panel_height - 5 * scale
             
             # Draw empty panel outline
             self.preview_canvas.create_rectangle(
