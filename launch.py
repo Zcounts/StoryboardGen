@@ -33,6 +33,10 @@ def main():
     """Main entry point for launching the application."""
     print("Starting Storyboard Generator...")
     
+    # Add the parent directory to Python's path so it can find the package
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, project_dir)
+    
     # Check if we're running from source or as an installed package
     if os.path.exists("main.py"):
         # Running from source with root main.py
