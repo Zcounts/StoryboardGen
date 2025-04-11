@@ -139,14 +139,14 @@ class PanelEditor(ttk.Frame):
         self.scene_number_var = tk.StringVar(value="1")
         scene_entry = ttk.Entry(info_grid, textvariable=self.scene_number_var)
         scene_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-        scene_entry.bind("<FocusOut>", self._on_scene_number_change)
+        scene_entry.bind("<FocusOut>", self._on_field_change)
+        scene_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Shot Number (letter)
         ttk.Label(info_grid, text="Shot Letter:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.shot_number_var = tk.StringVar()
-        shot_entry = ttk.Entry(info_grid, textvariable=self.shot_number_var)
-        shot_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
-        shot_entry.bind("<KeyRelease>", self._on_shot_number_change)
+        shot_entry = ttk.Entry(info_grid,
+        shot_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Full Shot Number Preview (read-only)
         ttk.Label(info_grid, text="Full Shot Number:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
@@ -157,7 +157,10 @@ class PanelEditor(ttk.Frame):
         # Lens
         ttk.Label(info_grid, text="Lens:").grid(row=0, column=2, sticky="w", padx=5, pady=5)
         self.lens_var = tk.StringVar()
-        ttk.Entry(info_grid, textvariable=self.lens_var).grid(row=0, column=3, sticky="ew", padx=5, pady=5)
+        lens_entry = ttk.Entry(info_grid, textvariable=self.lens_var)
+        lens_entry.grid(row=0, column=3, sticky="ew", padx=5, pady=5)
+        lens_entry.bind("<FocusOut>", self._on_field_change)
+        lens_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Configure grid columns to expand
         info_grid.columnconfigure(1, weight=1)
@@ -172,7 +175,10 @@ class PanelEditor(ttk.Frame):
         # Setup Number
         ttk.Label(setup_grid, text="Setup Number:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.setup_number_var = tk.StringVar(value="1")
-        ttk.Entry(setup_grid, textvariable=self.setup_number_var).grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        setup_entry = ttk.Entry(setup_grid, textvariable=self.setup_number_var)
+        setup_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        setup_entry.bind("<FocusOut>", self._on_field_change)
+        setup_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Camera (dropdown)
         ttk.Label(setup_grid, text="Camera:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
@@ -180,11 +186,15 @@ class PanelEditor(ttk.Frame):
         camera_combo = ttk.Combobox(setup_grid, textvariable=self.camera_var)
         camera_combo['values'] = ("Camera 1", "Camera 2", "Camera 3", "Camera 4", "Camera 5", "Camera 6")
         camera_combo.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        camera_combo.bind("<<ComboboxSelected>>", self._on_field_change)
         
         # Camera Name
         ttk.Label(setup_grid, text="Camera Name:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
         self.camera_name_var = tk.StringVar()
-        ttk.Entry(setup_grid, textvariable=self.camera_name_var).grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        camera_name_entry = ttk.Entry(setup_grid, textvariable=self.camera_name_var)
+        camera_name_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        camera_name_entry.bind("<FocusOut>", self._on_field_change)
+        camera_name_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Help text
         ttk.Label(
@@ -209,7 +219,8 @@ class PanelEditor(ttk.Frame):
         size_combo = ttk.Combobox(tech_grid, textvariable=self.size_var)
         size_combo['values'] = tuple(sorted(self.custom_values['size']))
         size_combo.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
-        size_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('size', self.size_var.get()))
+        size_combo.bind("<KeyRelease>", lambda e: self._add_custom_value_and_save('size', self.size_var.get()))
+        size_combo.bind("<<ComboboxSelected>>", self._on_field_change)
         
         # TYPE
         ttk.Label(tech_grid, text="TYPE").grid(row=0, column=1, padx=10, pady=5)
@@ -217,7 +228,8 @@ class PanelEditor(ttk.Frame):
         type_combo = ttk.Combobox(tech_grid, textvariable=self.type_var)
         type_combo['values'] = tuple(sorted(self.custom_values['type']))
         type_combo.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-        type_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('type', self.type_var.get()))
+        type_combo.bind("<KeyRelease>", lambda e: self._add_custom_value_and_save('type', self.type_var.get()))
+        type_combo.bind("<<ComboboxSelected>>", self._on_field_change)
         
         # MOVE
         ttk.Label(tech_grid, text="MOVE").grid(row=0, column=2, padx=10, pady=5)
@@ -225,7 +237,8 @@ class PanelEditor(ttk.Frame):
         move_combo = ttk.Combobox(tech_grid, textvariable=self.move_var)
         move_combo['values'] = tuple(sorted(self.custom_values['move']))
         move_combo.grid(row=1, column=2, padx=10, pady=5, sticky="ew")
-        move_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('move', self.move_var.get()))
+        move_combo.bind("<KeyRelease>", lambda e: self._add_custom_value_and_save('move', self.move_var.get()))
+        move_combo.bind("<<ComboboxSelected>>", self._on_field_change)
         
         # EQUIP
         ttk.Label(tech_grid, text="EQUIP").grid(row=0, column=3, padx=10, pady=5)
@@ -233,7 +246,8 @@ class PanelEditor(ttk.Frame):
         equip_combo = ttk.Combobox(tech_grid, textvariable=self.equip_var)
         equip_combo['values'] = tuple(sorted(self.custom_values['equip']))
         equip_combo.grid(row=1, column=3, padx=10, pady=5, sticky="ew")
-        equip_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('equip', self.equip_var.get()))
+        equip_combo.bind("<KeyRelease>", lambda e: self._add_custom_value_and_save('equip', self.equip_var.get()))
+        equip_combo.bind("<<ComboboxSelected>>", self._on_field_change)
         
         # Help text
         help_text = ttk.Label(
@@ -265,12 +279,18 @@ class PanelEditor(ttk.Frame):
         # Shot Time
         ttk.Label(shot_list_grid, text="Shot Time (min/hrs):").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.shot_time_var = tk.StringVar()
-        ttk.Entry(shot_list_grid, textvariable=self.shot_time_var).grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        shot_time_entry = ttk.Entry(shot_list_grid, textvariable=self.shot_time_var)
+        shot_time_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        shot_time_entry.bind("<FocusOut>", self._on_field_change)
+        shot_time_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Subject
         ttk.Label(shot_list_grid, text="Subject:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.subject_var = tk.StringVar()
-        ttk.Entry(shot_list_grid, textvariable=self.subject_var).grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        subject_entry = ttk.Entry(shot_list_grid, textvariable=self.subject_var)
+        subject_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        subject_entry.bind("<FocusOut>", self._on_field_change)
+        subject_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Help text
         help_text = ttk.Label(
@@ -295,6 +315,8 @@ class PanelEditor(ttk.Frame):
             insertbackground=self.text_color
         )
         self.audio_notes_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+        self.audio_notes_entry.bind("<KeyRelease>", self._on_text_change)
+        self.audio_notes_entry.bind("<FocusOut>", self._on_text_change)
         
         # Audio notes explanation
         help_text = ttk.Label(
@@ -317,7 +339,10 @@ class PanelEditor(ttk.Frame):
         # Action
         ttk.Label(action_grid, text="Action:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.action_var = tk.StringVar()
-        ttk.Entry(action_grid, textvariable=self.action_var).grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        action_entry = ttk.Entry(action_grid, textvariable=self.action_var)
+        action_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        action_entry.bind("<FocusOut>", self._on_field_change)
+        action_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Background
         ttk.Label(action_grid, text="Background:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
@@ -325,13 +350,17 @@ class PanelEditor(ttk.Frame):
         bgd_frame = ttk.Frame(action_grid)
         bgd_frame.grid(row=1, column=1, sticky="w", padx=5, pady=5)
         
-        ttk.Radiobutton(bgd_frame, text="Yes", variable=self.bgd_var, value="Yes", command=self._toggle_bgd_notes).pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(bgd_frame, text="No", variable=self.bgd_var, value="No", command=self._toggle_bgd_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(bgd_frame, text="Yes", variable=self.bgd_var, value="Yes", 
+                       command=lambda: self._toggle_bgd_notes(True)).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(bgd_frame, text="No", variable=self.bgd_var, value="No", 
+                       command=lambda: self._toggle_bgd_notes(False)).pack(side=tk.LEFT, padx=5)
         
         # Background notes (initially hidden)
         self.bgd_notes_label = ttk.Label(action_grid, text="Background Notes:")
         self.bgd_notes_var = tk.StringVar()
         self.bgd_notes_entry = ttk.Entry(action_grid, textvariable=self.bgd_notes_var)
+        self.bgd_notes_entry.bind("<FocusOut>", self._on_field_change)
+        self.bgd_notes_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Description
         ttk.Label(action_grid, text="Description:").grid(row=3, column=0, sticky="nw", padx=5, pady=5)
@@ -348,6 +377,8 @@ class PanelEditor(ttk.Frame):
             insertbackground=self.text_color
         )
         self.description_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+        self.description_entry.bind("<KeyRelease>", self._on_text_change)
+        self.description_entry.bind("<FocusOut>", self._on_text_change)
         
         # Notes
         ttk.Label(action_grid, text="Notes:").grid(row=4, column=0, sticky="nw", padx=5, pady=5)
@@ -364,6 +395,8 @@ class PanelEditor(ttk.Frame):
             insertbackground=self.text_color
         )
         self.notes_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
+        self.notes_entry.bind("<KeyRelease>", self._on_text_change)
+        self.notes_entry.bind("<FocusOut>", self._on_text_change)
         
         # Configure grid columns
         action_grid.columnconfigure(1, weight=1)
@@ -375,7 +408,7 @@ class PanelEditor(ttk.Frame):
         additional_grid.pack(fill="x", padx=10, pady=10)
         
         # Hair/Makeup with Yes/No toggle
-        ttk.Label(additional_grid, text="Hair/Makeup:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(additional_grid, text="Hair/Makeup/Wardrobe:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.hair_makeup_enabled_var = tk.StringVar(value="No")
         hair_makeup_frame = ttk.Frame(additional_grid)
         hair_makeup_frame.grid(row=0, column=1, sticky="w", padx=5, pady=5)
@@ -385,7 +418,7 @@ class PanelEditor(ttk.Frame):
             text="Yes", 
             variable=self.hair_makeup_enabled_var, 
             value="Yes", 
-            command=self._toggle_hair_makeup_notes
+            command=lambda: self._toggle_hair_makeup_notes(True)
         ).pack(side=tk.LEFT, padx=5)
         
         ttk.Radiobutton(
@@ -393,11 +426,11 @@ class PanelEditor(ttk.Frame):
             text="No", 
             variable=self.hair_makeup_enabled_var, 
             value="No", 
-            command=self._toggle_hair_makeup_notes
+            command=lambda: self._toggle_hair_makeup_notes(False)
         ).pack(side=tk.LEFT, padx=5)
         
         # Hair/Makeup notes (initially hidden)
-        self.hair_makeup_notes_label = ttk.Label(additional_grid, text="Hair/Makeup Notes:")
+        self.hair_makeup_notes_label = ttk.Label(additional_grid, text="H/M/W Notes:")
         self.hair_makeup_var = tk.StringVar()
         
         # Custom styled text widget
@@ -410,6 +443,8 @@ class PanelEditor(ttk.Frame):
             fg=self.text_color, 
             insertbackground=self.text_color
         )
+        self.hair_makeup_entry.bind("<KeyRelease>", self._on_text_change)
+        self.hair_makeup_entry.bind("<FocusOut>", self._on_text_change)
         
         # Props with Yes/No toggle
         ttk.Label(additional_grid, text="Props:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
@@ -422,7 +457,7 @@ class PanelEditor(ttk.Frame):
             text="Yes", 
             variable=self.props_enabled_var, 
             value="Yes", 
-            command=self._toggle_props_notes
+            command=lambda: self._toggle_props_notes(True)
         ).pack(side=tk.LEFT, padx=5)
         
         ttk.Radiobutton(
@@ -430,7 +465,7 @@ class PanelEditor(ttk.Frame):
             text="No", 
             variable=self.props_enabled_var, 
             value="No", 
-            command=self._toggle_props_notes
+            command=lambda: self._toggle_props_notes(False)
         ).pack(side=tk.LEFT, padx=5)
         
         # Props notes (initially hidden)
@@ -447,6 +482,8 @@ class PanelEditor(ttk.Frame):
             fg=self.text_color, 
             insertbackground=self.text_color
         )
+        self.props_entry.bind("<KeyRelease>", self._on_text_change)
+        self.props_entry.bind("<FocusOut>", self._on_text_change)
         
         # VFX with Yes/No toggle
         ttk.Label(additional_grid, text="VFX:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
@@ -459,7 +496,7 @@ class PanelEditor(ttk.Frame):
             text="Yes", 
             variable=self.vfx_enabled_var, 
             value="Yes", 
-            command=self._toggle_vfx_notes
+            command=lambda: self._toggle_vfx_notes(True)
         ).pack(side=tk.LEFT, padx=5)
         
         ttk.Radiobutton(
@@ -467,7 +504,7 @@ class PanelEditor(ttk.Frame):
             text="No", 
             variable=self.vfx_enabled_var, 
             value="No", 
-            command=self._toggle_vfx_notes
+            command=lambda: self._toggle_vfx_notes(False)
         ).pack(side=tk.LEFT, padx=5)
         
         # VFX notes (initially hidden)
@@ -484,29 +521,33 @@ class PanelEditor(ttk.Frame):
             fg=self.text_color, 
             insertbackground=self.text_color
         )
+        self.vfx_entry.bind("<KeyRelease>", self._on_text_change)
+        self.vfx_entry.bind("<FocusOut>", self._on_text_change)
         
         # Configure grid columns
         additional_grid.columnconfigure(1, weight=1)
         
-        # Save changes button in its own frame for better spacing
-        button_frame = ttk.Frame(parent_frame)
-        button_frame.pack(fill="x", padx=10, pady=10)
-        
-        save_button = ttk.Button(
-            button_frame, 
-            text="Save Changes", 
-            command=self._save_changes,
-            style="Accent.TButton"  # Custom style for accent buttons
+        # Status label instead of save button
+        self.status_label = ttk.Label(
+            parent_frame, 
+            text="Changes are saved automatically",
+            font=("Arial", 8, "italic"),
+            foreground="#888888"
         )
-        save_button.pack(side=tk.RIGHT, padx=5)
+        self.status_label.pack(side=tk.RIGHT, padx=10, pady=10)
     
-    def _on_scene_number_change(self, event=None):
-        """Update full shot number when scene number changes."""
+    def _on_field_change(self, event=None):
+        """Handle field changes for auto-save."""
         self._update_full_shot_number()
+        self._auto_save()
     
-    def _on_shot_number_change(self, event=None):
-        """Update full shot number when shot number changes."""
-        self._update_full_shot_number()
+    def _on_text_change(self, event=None):
+        """Handle text widget changes for auto-save."""
+        # Delay auto-save slightly to avoid excessive updates during typing
+        if hasattr(self, "_text_change_timer") and self._text_change_timer:
+            self.after_cancel(self._text_change_timer)
+        
+        self._text_change_timer = self.after(500, self._auto_save)
     
     def _update_full_shot_number(self):
         """Update the full shot number display."""
@@ -514,9 +555,23 @@ class PanelEditor(ttk.Frame):
         shot = self.shot_number_var.get() or ""
         self.full_shot_var.set(f"{scene}{shot}")
     
-    def _toggle_bgd_notes(self):
+    def _add_custom_value_and_save(self, field, value):
+        """Add a custom value to the dropdown if it's not already there and save."""
+        # Add the value to the dropdown
+        self._add_custom_value(field, value)
+        
+        # Auto-save the panel
+        self._on_text_change()
+    
+    def _add_custom_value(self, field, value):
+        """Add a custom value to the dropdown if it's not already there."""
+        if value and value not in self.custom_values[field]:
+            self.custom_values[field].add(value)
+            self.tech_combos[field]['values'] = tuple(sorted(self.custom_values[field]))
+    
+    def _toggle_bgd_notes(self, show):
         """Show/hide background notes field based on bgd selection."""
-        if self.bgd_var.get() == "Yes":
+        if show:
             # Show background notes field
             self.bgd_notes_label.grid(row=2, column=0, sticky="w", padx=5, pady=5)
             self.bgd_notes_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
@@ -526,10 +581,13 @@ class PanelEditor(ttk.Frame):
             self.bgd_notes_entry.grid_forget()
             # Clear the notes
             self.bgd_notes_var.set("")
+        
+        # Save the changes
+        self._auto_save()
 
-    def _toggle_hair_makeup_notes(self):
+    def _toggle_hair_makeup_notes(self, show):
         """Show/hide hair/makeup notes field based on selection."""
-        if self.hair_makeup_enabled_var.get() == "Yes":
+        if show:
             # Show hair/makeup notes field
             self.hair_makeup_notes_label.grid(row=1, column=0, sticky="nw", padx=5, pady=5)
             self.hair_makeup_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
@@ -540,10 +598,13 @@ class PanelEditor(ttk.Frame):
             # Clear the text
             self.hair_makeup_entry.delete("1.0", "end")
             self.hair_makeup_var.set("")
+        
+        # Save the changes
+        self._auto_save()
 
-    def _toggle_props_notes(self):
+    def _toggle_props_notes(self, show):
         """Show/hide props notes field based on selection."""
-        if self.props_enabled_var.get() == "Yes":
+        if show:
             # Show props notes field
             self.props_notes_label.grid(row=3, column=0, sticky="nw", padx=5, pady=5)
             self.props_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
@@ -554,10 +615,13 @@ class PanelEditor(ttk.Frame):
             # Clear the text
             self.props_entry.delete("1.0", "end")
             self.props_var.set("")
+        
+        # Save the changes
+        self._auto_save()
 
-    def _toggle_vfx_notes(self):
+    def _toggle_vfx_notes(self, show):
         """Show/hide VFX notes field based on selection."""
-        if self.vfx_enabled_var.get() == "Yes":
+        if show:
             # Show VFX notes field
             self.vfx_notes_label.grid(row=5, column=0, sticky="nw", padx=5, pady=5)
             self.vfx_entry.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
@@ -568,12 +632,9 @@ class PanelEditor(ttk.Frame):
             # Clear the text
             self.vfx_entry.delete("1.0", "end")
             self.vfx_var.set("")
-    
-    def _add_custom_value(self, field, value):
-        """Add a custom value to the dropdown if it's not already there."""
-        if value and value not in self.custom_values[field]:
-            self.custom_values[field].add(value)
-            self.tech_combos[field]['values'] = tuple(sorted(self.custom_values[field]))
+        
+        # Save the changes
+        self._auto_save()
     
     def _upload_image(self):
         """Handle image upload."""
@@ -594,9 +655,8 @@ class PanelEditor(ttk.Frame):
                 # Update the display
                 self._update_image_display()
                 
-                # Notify about the change
-                if self.on_panel_update:
-                    self.on_panel_update(self.current_panel)
+                # Auto-save
+                self._auto_save()
             except Exception as e:
                 tk.messagebox.showerror("Error", f"Failed to load image: {e}")
     
@@ -625,10 +685,13 @@ class PanelEditor(ttk.Frame):
             # Show the "No image" label
             self.no_image_label.place(relx=0.5, rely=0.5, anchor="center")
     
-    def _save_changes(self):
-        """Save the changes to the current panel."""
+    def _auto_save(self):
+        """Auto-save changes to the current panel."""
         if not self.current_panel:
             return
+        
+        # Update status label
+        self.status_label.config(text="Saving changes...")
         
         # Update panel properties from UI fields
         self.current_panel.shot_number = self.shot_number_var.get()
@@ -670,7 +733,6 @@ class PanelEditor(ttk.Frame):
             self.current_panel.vfx = self.vfx_entry.get("1.0", "end-1c")
         else:
             self.current_panel.vfx = ""
-        
         # Set new shot list fields
         self.current_panel.setup_number = self.setup_number_var.get() or "1"
         self.current_panel.camera_name = self.camera_name_var.get()
@@ -682,8 +744,10 @@ class PanelEditor(ttk.Frame):
         if self.on_panel_update:
             self.on_panel_update(self.current_panel)
         
-        # Show confirmation
-        tk.messagebox.showinfo("Success", "Panel information saved successfully!")
+        # Update status label
+        self.status_label.config(text="Changes saved automatically")
+        # Reset after a delay
+        self.after(2000, lambda: self.status_label.config(text="Changes are saved automatically"))
     
     def load_panel(self, panel):
         """
@@ -724,7 +788,7 @@ class PanelEditor(ttk.Frame):
             self.audio_notes_entry.insert("1.0", panel.audio_notes)
         
         # Toggle background notes visibility
-        self._toggle_bgd_notes()
+        self._toggle_bgd_notes(panel.bgd == "Yes")
         
         # Set text in Text widgets
         self.description_entry.delete("1.0", "end")
@@ -744,7 +808,7 @@ class PanelEditor(ttk.Frame):
             
         self.hair_makeup_entry.delete("1.0", "end")
         self.hair_makeup_entry.insert("1.0", panel.hair_makeup)
-        self._toggle_hair_makeup_notes()
+        self._toggle_hair_makeup_notes(self.hair_makeup_enabled_var.get() == "Yes")
         
         # Props
         if hasattr(panel, 'props_enabled'):
@@ -755,7 +819,7 @@ class PanelEditor(ttk.Frame):
             
         self.props_entry.delete("1.0", "end")
         self.props_entry.insert("1.0", panel.props)
-        self._toggle_props_notes()
+        self._toggle_props_notes(self.props_enabled_var.get() == "Yes")
         
         # VFX
         if hasattr(panel, 'vfx_enabled'):
@@ -766,7 +830,7 @@ class PanelEditor(ttk.Frame):
             
         self.vfx_entry.delete("1.0", "end")
         self.vfx_entry.insert("1.0", panel.vfx)
-        self._toggle_vfx_notes()
+        self._toggle_vfx_notes(self.vfx_enabled_var.get() == "Yes")
         
         # Update image display
         self._update_image_display()
