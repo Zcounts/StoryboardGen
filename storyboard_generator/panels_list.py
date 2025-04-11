@@ -49,6 +49,7 @@ class PanelsList(ttk.Frame):
         # Store panel data and image references
         self.panels = []
         self.thumbnails = []
+        self.panel_frames = []  # Track panel frames for selection
     
     def _create_toolbar(self):
         """Create the toolbar with panel management buttons."""
@@ -144,11 +145,13 @@ class PanelsList(ttk.Frame):
         if self.on_move_down and self.selected_index >= 0:
             self.on_move_down()
     
-    def _on_panel_click(self, index):
+    def _on_panel_click(self, index, event=None):
         """Handle click on a panel item."""
-        self.select_panel(index)
-        if self.on_select:
-            self.on_select(index)
+        # Ensure index is valid
+        if 0 <= index < len(self.panels):
+            self.select_panel(index)
+            if self.on_select:
+                self.on_select(index)
     
     def select_panel(self, index):
         """
@@ -162,19 +165,62 @@ class PanelsList(ttk.Frame):
             self.selected_index = index
             
             # Update the visual selection in the UI
-            for i, frame in enumerate(self.panels_frame.winfo_children()):
+            for i, frame in enumerate(self.panel_frames):
                 if i == index:
                     # Use a custom frame with background color for selected item
                     frame.configure(style="Selected.TFrame")
+                    # Apply distinct style to all child labels
                     for child in frame.winfo_children():
                         if isinstance(child, ttk.Label):
                             child.configure(style="Selected.TLabel")
+                        elif isinstance(child, ttk.Frame):
+                            # Also handle nested frames
+                            for subchild in child.winfo_children():
+                                if isinstance(subchild, ttk.Label):
+                                    subchild.configure(style="Selected.TLabel")
                 else:
                     # Use standard style for unselected items
                     frame.configure(style="TFrame")
+                    # Reset all child labels
                     for child in frame.winfo_children():
                         if isinstance(child, ttk.Label):
                             child.configure(style="TLabel")
+                        elif isinstance(child, ttk.Frame):
+                            # Also handle nested frames
+                            for subchild in child.winfo_children():
+                                if isinstance(subchild, ttk.Label):
+                                    subchild.configure(style="TLabel")
+            
+            # Make sure the selected panel is visible
+            self._ensure_visible(index)
+    
+    def _ensure_visible(self, index):
+        """
+        Ensure the selected panel is visible in the scrollable area.
+        
+        Args:
+            index: Index of the panel to make visible
+        """
+        if 0 <= index < len(self.panel_frames):
+            # Get the position of the panel frame
+            frame = self.panel_frames[index]
+            bbox = self.canvas.bbox(self.canvas_window)
+            if bbox:
+                canvas_height = bbox[3] - bbox[1]
+                frame_y = frame.winfo_y()
+                frame_height = frame.winfo_height()
+                
+                # Get the current scroll position
+                scroll_top = self.canvas.canvasy(0)
+                scroll_bottom = scroll_top + canvas_height
+                
+                # If the panel is not fully visible, scroll to make it visible
+                if frame_y < scroll_top:
+                    # Scroll up to show the panel at the top
+                    self.canvas.yview_moveto(frame_y / bbox[3])
+                elif frame_y + frame_height > scroll_bottom:
+                    # Scroll down to show the panel at the bottom
+                    self.canvas.yview_moveto((frame_y + frame_height - canvas_height) / bbox[3])
     
     def update_panels(self, panels):
         """
@@ -192,6 +238,9 @@ class PanelsList(ttk.Frame):
         # Clear existing panel items
         for widget in self.panels_frame.winfo_children():
             widget.destroy()
+        
+        # Clear panel frames list
+        self.panel_frames = []
         
         # Add panel items for each panel
         for i, panel in enumerate(panels):
@@ -216,26 +265,24 @@ class PanelsList(ttk.Frame):
         item_style = "Selected.TFrame" if index == self.selected_index else "TFrame"
         item_frame = ttk.Frame(self.panels_frame, style=item_style, padding=5)
         
-        # Add hover effect
-        def on_enter(e, frame=item_frame):
-            if frame.cget('style') != "Selected.TFrame":
-                frame.configure(style="Hover.TFrame")
-                
-        def on_leave(e, frame=item_frame):
-            if frame.cget('style') != "Selected.TFrame":
-                frame.configure(style="TFrame")
+        # Store reference to the frame
+        self.panel_frames.append(item_frame)
         
-        item_frame.bind("<Enter>", on_enter)
-        item_frame.bind("<Leave>", on_leave)
+        # Add hover effect (use tag to ensure we use the correct index even if panels are reordered)
+        item_frame.bind("<Enter>", lambda e, i=index: self._on_panel_hover(i, True))
+        item_frame.bind("<Leave>", lambda e, i=index: self._on_panel_hover(i, False))
         
         item_frame.pack(fill=tk.X, padx=5, pady=2)
         
-        # Make the frame selectable by clicking
-        item_frame.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i))
+        # Make the frame selectable by clicking (use index from the loop)
+        item_frame.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
         
         # Create a horizontal layout
         info_frame = ttk.Frame(item_frame, style=item_style)
         info_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Also make this frame clickable
+        info_frame.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
         
         # Add shot number label with proper styling
         label_style = "Selected.TLabel" if index == self.selected_index else "TLabel"
@@ -247,16 +294,23 @@ class PanelsList(ttk.Frame):
         )
         shot_label.pack(anchor=tk.W)
         
+        # Make label clickable too
+        shot_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
+        
         # Add description preview if available
         if panel.description:
             # Limit to first 50 chars
             preview = panel.description[:50] + "..." if len(panel.description) > 50 else panel.description
             desc_label = ttk.Label(info_frame, text=preview, style=label_style)
             desc_label.pack(anchor=tk.W)
+            # Make this label clickable too
+            desc_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
         
         # Add camera info
         camera_label = ttk.Label(info_frame, text=f"Camera: {panel.camera}", style=label_style)
         camera_label.pack(anchor=tk.W)
+        # Make this label clickable too
+        camera_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
         
         # Add thumbnail if available
         thumbnail = panel.get_thumbnail()
@@ -266,4 +320,42 @@ class PanelsList(ttk.Frame):
             thumb_label.pack(side=tk.RIGHT, padx=5)
             
             # Also make thumbnail clickable
-            thumb_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i))
+            thumb_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
+    
+    def _on_panel_hover(self, index, is_enter):
+        """
+        Handle hover events on panel items.
+        
+        Args:
+            index: Index of the panel
+            is_enter: True if mouse entered, False if mouse left
+        """
+        # Skip if this is the selected panel
+        if index == self.selected_index:
+            return
+            
+        # Get the frame for this index
+        if 0 <= index < len(self.panel_frames):
+            frame = self.panel_frames[index]
+            if is_enter:
+                # Highlight on hover
+                frame.configure(style="Hover.TFrame")
+                # Change text color too
+                for child in frame.winfo_children():
+                    if isinstance(child, ttk.Label):
+                        child.configure(style="Hover.TLabel")
+                    elif isinstance(child, ttk.Frame):
+                        for subchild in child.winfo_children():
+                            if isinstance(subchild, ttk.Label):
+                                subchild.configure(style="Hover.TLabel")
+            else:
+                # Remove highlight
+                frame.configure(style="TFrame")
+                # Reset text color
+                for child in frame.winfo_children():
+                    if isinstance(child, ttk.Label):
+                        child.configure(style="TLabel")
+                    elif isinstance(child, ttk.Frame):
+                        for subchild in child.winfo_children():
+                            if isinstance(subchild, ttk.Label):
+                                subchild.configure(style="TLabel")
