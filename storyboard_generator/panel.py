@@ -1,3 +1,4 @@
+# storyboard_generator/panel.py
 import os
 import uuid
 from PIL import Image, ImageTk
@@ -14,12 +15,12 @@ class Panel:
         self.id = str(uuid.uuid4())
         
         # Basic panel information
-        self.shot_number = ""
-        self.scene_number = ""
+        self.shot_number = ""  # Will be a letter (A, B, C, etc.)
+        self.scene_number = "1"  # Default to scene 1
         self.description = ""
         self.notes = ""
         
-        # Additional metadata from the example
+        # Additional metadata
         self.camera = "Camera 1"
         self.lens = ""  # e.g., 85mm
         self.size = ""  # e.g., CLOSE UP, WIDE, MEDIUM
@@ -27,7 +28,13 @@ class Panel:
         self.move = "STATIC"  # e.g., STATIC, PUSH
         self.equip = "STICKS"  # e.g., STICKS, GIMBAL
         self.action = ""
+        
+        # New fields
         self.bgd = "No"  # Yes/No
+        self.bgd_notes = ""  # Only used when bgd is "Yes"
+        self.hair_makeup = ""  # Hair and makeup notes
+        self.props = ""  # Props notes
+        self.vfx = ""  # VFX notes
         
         # Image properties
         self.image_path = None
@@ -136,6 +143,17 @@ class Panel:
         
         return ImageTk.PhotoImage(self.thumbnail)
     
+    def get_full_shot_number(self):
+        """
+        Get the full shot number in format: sceneN-letter (e.g., 1A, 2B)
+        
+        Returns:
+            str: The formatted shot number
+        """
+        if not self.shot_number:
+            return f"{self.scene_number}"
+        return f"{self.scene_number}{self.shot_number}"
+    
     def to_dict(self):
         """
         Convert the panel to a dictionary for serialization.
@@ -157,6 +175,10 @@ class Panel:
             'equip': self.equip,
             'action': self.action,
             'bgd': self.bgd,
+            'bgd_notes': self.bgd_notes,
+            'hair_makeup': self.hair_makeup,
+            'props': self.props,
+            'vfx': self.vfx,
             'image_path': self.image_path,
             'order': self.order,
             'last_modified': datetime.now().isoformat()
@@ -179,7 +201,7 @@ class Panel:
         # Set basic properties
         panel.id = data.get('id', panel.id)
         panel.shot_number = data.get('shot_number', '')
-        panel.scene_number = data.get('scene_number', '')
+        panel.scene_number = data.get('scene_number', '1')
         panel.description = data.get('description', '')
         panel.notes = data.get('notes', '')
         
@@ -192,6 +214,12 @@ class Panel:
         panel.equip = data.get('equip', 'STICKS')
         panel.action = data.get('action', '')
         panel.bgd = data.get('bgd', 'No')
+        
+        # New fields
+        panel.bgd_notes = data.get('bgd_notes', '')
+        panel.hair_makeup = data.get('hair_makeup', '')
+        panel.props = data.get('props', '')
+        panel.vfx = data.get('vfx', '')
         
         # Set order
         panel.order = data.get('order', 0)
