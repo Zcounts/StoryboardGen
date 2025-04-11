@@ -30,6 +30,7 @@ class PanelEditor(ttk.Frame):
         self.text_color = "#FFFFFF"  # White text
         self.accent_color = "#2D2D30"  # Slightly lighter than background
         self.input_bg_color = "#3E3E42"  # Darker input background for better contrast
+        self.highlight_color = "#007ACC"  # Blue highlight
         
         # Configure the frame
         self.configure(style="TFrame")
@@ -57,26 +58,38 @@ class PanelEditor(ttk.Frame):
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
         
+        # Create sections with nice margins and spacing
+        section_padding = 10
+        
         # Image section
-        self._create_image_section()
+        self._create_section("Panel Image", self._create_image_section, section_padding)
         
         # Scene and shot info section
-        self._create_scene_info_section()
+        self._create_section("Scene Information", self._create_scene_info_section, section_padding)
         
-        # Technical info section - Size, Type, Move, Equip
-        self._create_technical_info_section()
+        # Setup and Camera section
+        self._create_section("Setup and Camera Information", self._create_setup_camera_section, section_padding)
         
-        # Setup and Camera section (new)
-        self._create_setup_camera_section()
+        # Technical info section
+        self._create_section("Technical Information", self._create_technical_info_section, section_padding)
         
         # Action info section
-        self._create_action_info_section()
+        self._create_section("Action Information", self._create_action_info_section, section_padding)
         
-        # Shot list specific section (new)
-        self._create_shot_list_section()
+        # Shot list specific section
+        self._create_section("Shot List Information", self._create_shot_list_section, section_padding)
         
-        # New sections for additional fields
-        self._create_additional_info_section()
+        # Additional info section
+        self._create_section("Additional Information", self._create_additional_info_section, section_padding)
+    
+    def _create_section(self, title, content_function, padding):
+        """Create a collapsible section with a title and content."""
+        # Create a frame for this section
+        section_frame = ttk.LabelFrame(self.scrollable_frame, text=title)
+        section_frame.pack(fill="x", padx=padding, pady=padding)
+        
+        # Call the content creation function with the section frame
+        content_function(section_frame)
     
     def _on_enter(self, event):
         """Track when mouse enters this widget."""
@@ -92,13 +105,10 @@ class PanelEditor(ttk.Frame):
         if hasattr(self, 'active_scroll') and self.active_scroll:
             self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
     
-    def _create_image_section(self):
+    def _create_image_section(self, parent_frame):
         """Create the image display and upload section."""
-        image_frame = ttk.LabelFrame(self.scrollable_frame, text="Panel Image")
-        image_frame.pack(fill="x", padx=10, pady=5)
-        
         # Image display area
-        self.image_container = ttk.Frame(image_frame, width=400, height=300)
+        self.image_container = ttk.Frame(parent_frame, width=400, height=300)
         self.image_container.pack(padx=10, pady=10)
         self.image_container.pack_propagate(False)  # Keep the frame at fixed size
         
@@ -106,17 +116,22 @@ class PanelEditor(ttk.Frame):
         self.no_image_label = ttk.Label(self.image_container, text="No image selected")
         self.no_image_label.place(relx=0.5, rely=0.5, anchor="center")
         
-        # Upload button
-        upload_button = ttk.Button(image_frame, text="Upload Image", command=self._upload_image)
-        upload_button.pack(pady=(0, 10))
-    
-    def _create_scene_info_section(self):
-        """Create the scene and shot info section."""
-        info_frame = ttk.LabelFrame(self.scrollable_frame, text="Scene Information")
-        info_frame.pack(fill="x", padx=10, pady=5)
+        # Upload button with modern styling
+        button_frame = ttk.Frame(parent_frame)
+        button_frame.pack(fill="x", padx=10, pady=(0, 10))
         
+        upload_button = ttk.Button(
+            button_frame, 
+            text="Upload Image", 
+            command=self._upload_image,
+            style="Accent.TButton"  # Custom style for accent buttons
+        )
+        upload_button.pack(side=tk.LEFT, padx=5)
+    
+    def _create_scene_info_section(self, parent_frame):
+        """Create the scene and shot info section."""
         # Grid for labels and inputs
-        info_grid = ttk.Frame(info_frame)
+        info_grid = ttk.Frame(parent_frame)
         info_grid.pack(fill="x", padx=10, pady=10)
         
         # Scene Number
@@ -131,6 +146,7 @@ class PanelEditor(ttk.Frame):
         self.shot_number_var = tk.StringVar()
         shot_entry = ttk.Entry(info_grid, textvariable=self.shot_number_var)
         shot_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        shot_entry.bind("<KeyRelease>", self._on_shot_number_change)
         
         # Full Shot Number Preview (read-only)
         ttk.Label(info_grid, text="Full Shot Number:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
@@ -147,13 +163,10 @@ class PanelEditor(ttk.Frame):
         info_grid.columnconfigure(1, weight=1)
         info_grid.columnconfigure(3, weight=1)
     
-    def _create_setup_camera_section(self):
+    def _create_setup_camera_section(self, parent_frame):
         """Create the setup and camera section."""
-        setup_frame = ttk.LabelFrame(self.scrollable_frame, text="Setup and Camera Information")
-        setup_frame.pack(fill="x", padx=10, pady=5)
-        
         # Grid for setup info
-        setup_grid = ttk.Frame(setup_frame)
+        setup_grid = ttk.Frame(parent_frame)
         setup_grid.pack(fill="x", padx=10, pady=10)
         
         # Setup Number
@@ -173,50 +186,63 @@ class PanelEditor(ttk.Frame):
         self.camera_name_var = tk.StringVar()
         ttk.Entry(setup_grid, textvariable=self.camera_name_var).grid(row=2, column=1, sticky="ew", padx=5, pady=5)
         
+        # Help text
+        ttk.Label(
+            setup_grid, 
+            text="Camera Name is for identifying specific equipment (e.g., 'fx30')",
+            font=("Arial", 8, "italic"),
+            foreground="#888888"
+        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=5, pady=2)
+        
         # Configure grid columns to expand
         setup_grid.columnconfigure(1, weight=1)
-        setup_grid.columnconfigure(3, weight=1)
     
-    def _create_technical_info_section(self):
+    def _create_technical_info_section(self, parent_frame):
         """Create the technical info section with Size, Type, Move, Equip."""
-        tech_frame = ttk.LabelFrame(self.scrollable_frame, text="Technical Information")
-        tech_frame.pack(fill="x", padx=10, pady=5)
-        
         # Grid for the technical info
-        tech_grid = ttk.Frame(tech_frame)
+        tech_grid = ttk.Frame(parent_frame)
         tech_grid.pack(fill="x", padx=10, pady=10)
         
-        # Size
+        # SIZE
         ttk.Label(tech_grid, text="SIZE").grid(row=0, column=0, padx=10, pady=5)
         self.size_var = tk.StringVar()
         size_combo = ttk.Combobox(tech_grid, textvariable=self.size_var)
-        size_combo['values'] = tuple(self.custom_values['size'])
-        size_combo.grid(row=1, column=0, padx=10, pady=5)
+        size_combo['values'] = tuple(sorted(self.custom_values['size']))
+        size_combo.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
         size_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('size', self.size_var.get()))
         
-        # Type
+        # TYPE
         ttk.Label(tech_grid, text="TYPE").grid(row=0, column=1, padx=10, pady=5)
         self.type_var = tk.StringVar()
         type_combo = ttk.Combobox(tech_grid, textvariable=self.type_var)
-        type_combo['values'] = tuple(self.custom_values['type'])
-        type_combo.grid(row=1, column=1, padx=10, pady=5)
+        type_combo['values'] = tuple(sorted(self.custom_values['type']))
+        type_combo.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
         type_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('type', self.type_var.get()))
         
-        # Move
+        # MOVE
         ttk.Label(tech_grid, text="MOVE").grid(row=0, column=2, padx=10, pady=5)
         self.move_var = tk.StringVar(value="STATIC")
         move_combo = ttk.Combobox(tech_grid, textvariable=self.move_var)
-        move_combo['values'] = tuple(self.custom_values['move'])
-        move_combo.grid(row=1, column=2, padx=10, pady=5)
+        move_combo['values'] = tuple(sorted(self.custom_values['move']))
+        move_combo.grid(row=1, column=2, padx=10, pady=5, sticky="ew")
         move_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('move', self.move_var.get()))
         
-        # Equip
+        # EQUIP
         ttk.Label(tech_grid, text="EQUIP").grid(row=0, column=3, padx=10, pady=5)
         self.equip_var = tk.StringVar(value="STICKS")
         equip_combo = ttk.Combobox(tech_grid, textvariable=self.equip_var)
-        equip_combo['values'] = tuple(self.custom_values['equip'])
-        equip_combo.grid(row=1, column=3, padx=10, pady=5)
+        equip_combo['values'] = tuple(sorted(self.custom_values['equip']))
+        equip_combo.grid(row=1, column=3, padx=10, pady=5, sticky="ew")
         equip_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('equip', self.equip_var.get()))
+        
+        # Help text
+        help_text = ttk.Label(
+            tech_grid, 
+            text="You can type custom values in these fields to add them to the dropdown list.",
+            font=("Arial", 8, "italic"),
+            foreground="#888888"
+        )
+        help_text.grid(row=2, column=0, columnspan=4, sticky="w", padx=10, pady=5)
         
         # Configure grid columns to be equal width
         for i in range(4):
@@ -230,13 +256,10 @@ class PanelEditor(ttk.Frame):
             'equip': equip_combo
         }
     
-    def _create_shot_list_section(self):
+    def _create_shot_list_section(self, parent_frame):
         """Create the section for shot list specific information."""
-        shot_list_frame = ttk.LabelFrame(self.scrollable_frame, text="Shot List Information")
-        shot_list_frame.pack(fill="x", padx=10, pady=5)
-        
         # Grid for shot list info
-        shot_list_grid = ttk.Frame(shot_list_frame)
+        shot_list_grid = ttk.Frame(parent_frame)
         shot_list_grid.pack(fill="x", padx=10, pady=10)
         
         # Shot Time
@@ -249,31 +272,46 @@ class PanelEditor(ttk.Frame):
         self.subject_var = tk.StringVar()
         ttk.Entry(shot_list_grid, textvariable=self.subject_var).grid(row=1, column=1, sticky="ew", padx=5, pady=5)
         
+        # Help text
+        help_text = ttk.Label(
+            shot_list_grid,
+            text="Subject refers to who is on screen (e.g., 'John, Mary')",
+            font=("Arial", 8, "italic"),
+            foreground="#888888"
+        )
+        help_text.grid(row=2, column=0, columnspan=2, sticky="w", padx=5, pady=2)
+        
         # Audio Notes
-        ttk.Label(shot_list_grid, text="Audio Notes:").grid(row=2, column=0, sticky="nw", padx=5, pady=5)
-        self.audio_notes_var = tk.StringVar()
+        ttk.Label(shot_list_grid, text="Audio Notes:").grid(row=3, column=0, sticky="nw", padx=5, pady=5)
         
         # Custom styled text widget for audio notes
-        self.audio_notes_entry = tk.Text(shot_list_grid, wrap=tk.WORD, height=3, width=40, 
-                                       bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        self.audio_notes_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        self.audio_notes_entry = tk.Text(
+            shot_list_grid, 
+            wrap=tk.WORD, 
+            height=3, 
+            width=40, 
+            bg=self.input_bg_color, 
+            fg=self.text_color, 
+            insertbackground=self.text_color
+        )
+        self.audio_notes_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
         
-        # Connect text widget with StringVar
-        def update_audio_notes_var(event=None):
-            self.audio_notes_var.set(self.audio_notes_entry.get("1.0", "end-1c"))
-        
-        self.audio_notes_entry.bind("<KeyRelease>", update_audio_notes_var)
+        # Audio notes explanation
+        help_text = ttk.Label(
+            shot_list_grid,
+            text="Use this for sound design notes, dialogue cues, or music direction",
+            font=("Arial", 8, "italic"),
+            foreground="#888888"
+        )
+        help_text.grid(row=4, column=0, columnspan=2, sticky="w", padx=5, pady=2)
         
         # Configure grid columns to expand
         shot_list_grid.columnconfigure(1, weight=1)
     
-    def _create_action_info_section(self):
+    def _create_action_info_section(self, parent_frame):
         """Create the action information section."""
-        action_frame = ttk.LabelFrame(self.scrollable_frame, text="Action Information")
-        action_frame.pack(fill="x", padx=10, pady=5)
-        
         # Grid for action info
-        action_grid = ttk.Frame(action_frame)
+        action_grid = ttk.Frame(parent_frame)
         action_grid.pack(fill="x", padx=10, pady=10)
         
         # Action
@@ -300,43 +338,40 @@ class PanelEditor(ttk.Frame):
         self.description_var = tk.StringVar()
         
         # Custom text widget with improved styling
-        description_entry = tk.Text(action_grid, wrap=tk.WORD, height=4, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        description_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
-        
-        # Connect text widget with StringVar (requires custom handling)
-        def update_description_var(event=None):
-            self.description_var.set(description_entry.get("1.0", "end-1c"))
-        
-        description_entry.bind("<KeyRelease>", update_description_var)
+        self.description_entry = tk.Text(
+            action_grid, 
+            wrap=tk.WORD, 
+            height=4, 
+            width=40, 
+            bg=self.input_bg_color, 
+            fg=self.text_color, 
+            insertbackground=self.text_color
+        )
+        self.description_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
         
         # Notes
         ttk.Label(action_grid, text="Notes:").grid(row=4, column=0, sticky="nw", padx=5, pady=5)
         self.notes_var = tk.StringVar()
         
         # Custom styled text widget
-        notes_entry = tk.Text(action_grid, wrap=tk.WORD, height=4, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        notes_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
-        
-        # Connect text widget with StringVar (requires custom handling)
-        def update_notes_var(event=None):
-            self.notes_var.set(notes_entry.get("1.0", "end-1c"))
-        
-        notes_entry.bind("<KeyRelease>", update_notes_var)
+        self.notes_entry = tk.Text(
+            action_grid, 
+            wrap=tk.WORD, 
+            height=4, 
+            width=40, 
+            bg=self.input_bg_color, 
+            fg=self.text_color, 
+            insertbackground=self.text_color
+        )
+        self.notes_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
         
         # Configure grid columns
         action_grid.columnconfigure(1, weight=1)
-        
-        # Store text widgets for later access
-        self.description_entry = description_entry
-        self.notes_entry = notes_entry
     
-    def _create_additional_info_section(self):
+    def _create_additional_info_section(self, parent_frame):
         """Create the section for hair/makeup, props, and VFX."""
-        additional_frame = ttk.LabelFrame(self.scrollable_frame, text="Additional Information")
-        additional_frame.pack(fill="x", padx=10, pady=5)
-        
         # Grid for additional info
-        additional_grid = ttk.Frame(additional_frame)
+        additional_grid = ttk.Frame(parent_frame)
         additional_grid.pack(fill="x", padx=10, pady=10)
         
         # Hair/Makeup with Yes/No toggle
@@ -345,24 +380,36 @@ class PanelEditor(ttk.Frame):
         hair_makeup_frame = ttk.Frame(additional_grid)
         hair_makeup_frame.grid(row=0, column=1, sticky="w", padx=5, pady=5)
         
-        ttk.Radiobutton(hair_makeup_frame, text="Yes", variable=self.hair_makeup_enabled_var, 
-                         value="Yes", command=self._toggle_hair_makeup_notes).pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(hair_makeup_frame, text="No", variable=self.hair_makeup_enabled_var, 
-                         value="No", command=self._toggle_hair_makeup_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(
+            hair_makeup_frame, 
+            text="Yes", 
+            variable=self.hair_makeup_enabled_var, 
+            value="Yes", 
+            command=self._toggle_hair_makeup_notes
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Radiobutton(
+            hair_makeup_frame, 
+            text="No", 
+            variable=self.hair_makeup_enabled_var, 
+            value="No", 
+            command=self._toggle_hair_makeup_notes
+        ).pack(side=tk.LEFT, padx=5)
         
         # Hair/Makeup notes (initially hidden)
         self.hair_makeup_notes_label = ttk.Label(additional_grid, text="Hair/Makeup Notes:")
         self.hair_makeup_var = tk.StringVar()
         
         # Custom styled text widget
-        self.hair_makeup_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, 
-                                        bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        
-        # Connect text widget with StringVar
-        def update_hair_makeup_var(event=None):
-            self.hair_makeup_var.set(self.hair_makeup_entry.get("1.0", "end-1c"))
-        
-        self.hair_makeup_entry.bind("<KeyRelease>", update_hair_makeup_var)
+        self.hair_makeup_entry = tk.Text(
+            additional_grid, 
+            wrap=tk.WORD, 
+            height=3, 
+            width=40, 
+            bg=self.input_bg_color, 
+            fg=self.text_color, 
+            insertbackground=self.text_color
+        )
         
         # Props with Yes/No toggle
         ttk.Label(additional_grid, text="Props:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
@@ -370,24 +417,36 @@ class PanelEditor(ttk.Frame):
         props_frame = ttk.Frame(additional_grid)
         props_frame.grid(row=2, column=1, sticky="w", padx=5, pady=5)
         
-        ttk.Radiobutton(props_frame, text="Yes", variable=self.props_enabled_var, 
-                        value="Yes", command=self._toggle_props_notes).pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(props_frame, text="No", variable=self.props_enabled_var, 
-                        value="No", command=self._toggle_props_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(
+            props_frame, 
+            text="Yes", 
+            variable=self.props_enabled_var, 
+            value="Yes", 
+            command=self._toggle_props_notes
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Radiobutton(
+            props_frame, 
+            text="No", 
+            variable=self.props_enabled_var, 
+            value="No", 
+            command=self._toggle_props_notes
+        ).pack(side=tk.LEFT, padx=5)
         
         # Props notes (initially hidden)
         self.props_notes_label = ttk.Label(additional_grid, text="Props Notes:")
         self.props_var = tk.StringVar()
         
         # Custom styled text widget
-        self.props_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, 
-                                  bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        
-        # Connect text widget with StringVar
-        def update_props_var(event=None):
-            self.props_var.set(self.props_entry.get("1.0", "end-1c"))
-        
-        self.props_entry.bind("<KeyRelease>", update_props_var)
+        self.props_entry = tk.Text(
+            additional_grid, 
+            wrap=tk.WORD, 
+            height=3, 
+            width=40, 
+            bg=self.input_bg_color, 
+            fg=self.text_color, 
+            insertbackground=self.text_color
+        )
         
         # VFX with Yes/No toggle
         ttk.Label(additional_grid, text="VFX:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
@@ -395,34 +454,58 @@ class PanelEditor(ttk.Frame):
         vfx_frame = ttk.Frame(additional_grid)
         vfx_frame.grid(row=4, column=1, sticky="w", padx=5, pady=5)
         
-        ttk.Radiobutton(vfx_frame, text="Yes", variable=self.vfx_enabled_var, 
-                        value="Yes", command=self._toggle_vfx_notes).pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(vfx_frame, text="No", variable=self.vfx_enabled_var, 
-                        value="No", command=self._toggle_vfx_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(
+            vfx_frame, 
+            text="Yes", 
+            variable=self.vfx_enabled_var, 
+            value="Yes", 
+            command=self._toggle_vfx_notes
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Radiobutton(
+            vfx_frame, 
+            text="No", 
+            variable=self.vfx_enabled_var, 
+            value="No", 
+            command=self._toggle_vfx_notes
+        ).pack(side=tk.LEFT, padx=5)
         
         # VFX notes (initially hidden)
         self.vfx_notes_label = ttk.Label(additional_grid, text="VFX Notes:")
         self.vfx_var = tk.StringVar()
         
         # Custom styled text widget
-        self.vfx_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, 
-                                bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        
-        # Connect text widget with StringVar
-        def update_vfx_var(event=None):
-            self.vfx_var.set(self.vfx_entry.get("1.0", "end-1c"))
-        
-        self.vfx_entry.bind("<KeyRelease>", update_vfx_var)
+        self.vfx_entry = tk.Text(
+            additional_grid, 
+            wrap=tk.WORD, 
+            height=3, 
+            width=40, 
+            bg=self.input_bg_color, 
+            fg=self.text_color, 
+            insertbackground=self.text_color
+        )
         
         # Configure grid columns
         additional_grid.columnconfigure(1, weight=1)
         
-        # Save changes button
-        save_button = ttk.Button(additional_frame, text="Save Changes", command=self._save_changes)
-        save_button.pack(pady=10)
+        # Save changes button in its own frame for better spacing
+        button_frame = ttk.Frame(parent_frame)
+        button_frame.pack(fill="x", padx=10, pady=10)
+        
+        save_button = ttk.Button(
+            button_frame, 
+            text="Save Changes", 
+            command=self._save_changes,
+            style="Accent.TButton"  # Custom style for accent buttons
+        )
+        save_button.pack(side=tk.RIGHT, padx=5)
     
     def _on_scene_number_change(self, event=None):
         """Update full shot number when scene number changes."""
+        self._update_full_shot_number()
+    
+    def _on_shot_number_change(self, event=None):
+        """Update full shot number when shot number changes."""
         self._update_full_shot_number()
     
     def _update_full_shot_number(self):
@@ -490,7 +573,7 @@ class PanelEditor(ttk.Frame):
         """Add a custom value to the dropdown if it's not already there."""
         if value and value not in self.custom_values[field]:
             self.custom_values[field].add(value)
-            self.tech_combos[field]['values'] = tuple(self.custom_values[field])
+            self.tech_combos[field]['values'] = tuple(sorted(self.custom_values[field]))
     
     def _upload_image(self):
         """Handle image upload."""
