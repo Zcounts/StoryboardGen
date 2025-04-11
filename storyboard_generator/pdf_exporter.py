@@ -43,20 +43,20 @@ class PDFExporter:
             "J": colors.pink,
             "K": colors.teal,
             "L": colors.lavender,
-            "M": colors.lime,          # bright, stands out from earlier greens
-            "N": colors.lightblue,     # a softer blue than A=blue
-            "O": colors.plum,          # a warm purple-pink
-            "P": colors.rosybrown,     # muted earthy tone
-            "Q": colors.chocolate,     # rich brownish-orange
-            "R": colors.crimson,       # strong, deep red
-            "S": colors.lightgreen,    # airy green distinct from B=darkgreen
-            "T": colors.tomato,        # vivid orangey-red
-            "U": colors.magenta,       # bold, bright magenta
-            "V": colors.indigo,        # deeper variant of purple/blue
-            "W": colors.darkkhaki,     # muted yellowish-brown
-            "X": colors.lightsalmon,   # soft orange-pink
-            "Y": colors.yellow,        # a pure, classic yellow
-            "Z": colors.orchid,        # pink-purple hue
+            "M": colors.lime,
+            "N": colors.lightblue,
+            "O": colors.plum,
+            "P": colors.rosybrown,
+            "Q": colors.chocolate,
+            "R": colors.crimson,
+            "S": colors.lightgreen,
+            "T": colors.tomato,
+            "U": colors.magenta,
+            "V": colors.indigo,
+            "W": colors.darkkhaki,
+            "X": colors.lightsalmon,
+            "Y": colors.yellow,
+            "Z": colors.orchid,
         }
     
     def _setup_styles(self):
@@ -85,8 +85,22 @@ class PDFExporter:
             name='ShotStyle',
             parent=self.styles['Normal'],
             fontSize=9,
-            textColor=colors.white,
+            textColor=colors.black,
             alignment=TA_LEFT
+        )
+        
+        self.lens_style = ParagraphStyle(
+            name='LensStyle',
+            parent=self.styles['Normal'],
+            fontSize=9,
+            alignment=TA_RIGHT
+        )
+        
+        self.setup_style = ParagraphStyle(
+            name='SetupStyle',
+            parent=self.styles['Normal'],
+            fontSize=7,
+            alignment=TA_RIGHT
         )
         
         self.label_style = ParagraphStyle(
@@ -187,54 +201,6 @@ class PDFExporter:
         # Add title
         elements.append(Paragraph(f"<b>{project_name}</b>", self.title_style))
         
-        # Add camera color legend
-        elements.append(Spacer(1, 5*mm))
-        elements.append(Paragraph("<b>Camera Legend:</b>", self.section_header_style))
-        
-        legend_data = []
-        for camera, color in self.camera_colors.items():
-            # Convert color to hex for HTML
-            r, g, b = color.rgb()
-            hex_color = '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
-            
-            # Create a color box with camera name
-            legend_item = f'<span style="background-color:{hex_color}; color:white; padding:2px 5px;">{camera}</span>'
-            
-            # Add camera name if specified in panels
-            camera_names = set()
-            for panel in panels:
-                if panel.camera == camera and hasattr(panel, 'camera_name') and panel.camera_name:
-                    camera_names.add(panel.camera_name)
-            
-            if camera_names:
-                legend_item += f" ({', '.join(camera_names)})"
-                
-            legend_data.append(Paragraph(legend_item, self.legend_style))
-        
-        # Create a table with legend items (3 columns)
-        rows = []
-        row = []
-        for i, item in enumerate(legend_data):
-            row.append(item)
-            if (i + 1) % 3 == 0 or i == len(legend_data) - 1:
-                # Fill empty cells
-                while len(row) < 3:
-                    row.append("")
-                rows.append(row)
-                row = []
-        
-        legend_table = Table(rows, colWidths=[6*cm, 6*cm, 6*cm])
-        legend_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 5),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ]))
-        
-        elements.append(legend_table)
-        elements.append(Spacer(1, 5*mm))
-        
         # Process each scene - each scene starts on a new page
         for scene_number in sorted_scenes:
             # Add scene header
@@ -316,16 +282,13 @@ class PDFExporter:
         # Create header row with shot info and setup
         setup_text = f"Setup {panel.setup_number}" if hasattr(panel, 'setup_number') and panel.setup_number else ""
         shot_text = f"{panel.scene_number}{panel.shot_number}"
+        lens_text = f"Lens: {panel.lens}" if panel.lens else ""
         
+        # Create a table for the header with two columns
         header_data = [
             [
                 Paragraph(shot_text, self.shot_style),
-                Paragraph(setup_text, ParagraphStyle(
-                    name='SetupStyle',
-                    parent=self.styles['Normal'],
-                    fontSize=7,
-                    alignment=TA_RIGHT
-                ))
+                Paragraph(lens_text, self.lens_style)
             ]
         ]
         
@@ -335,11 +298,9 @@ class PDFExporter:
             rowHeights=[0.4*cm]
         )
         
-        # Style the header table
+        # Style the header table without background color
         header_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BACKGROUND', (0, 0), (0, 0), camera_color),  # Use camera color for header background
-            ('TEXTCOLOR', (0, 0), (0, 0), colors.white),
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('ALIGN', (-1, 0), (-1, 0), 'RIGHT'),
             ('LEFTPADDING', (0, 0), (0, 0), 5),
@@ -348,14 +309,15 @@ class PDFExporter:
         
         panel_elements.append(header_table)
         
-        # Add lens info if available
-        if panel.lens:
-            lens_text = f"Lens: {panel.lens}"
-            panel_elements.append(Paragraph(lens_text, self.action_style))
+        # Add setup info if available
+        if setup_text:
+            panel_elements.append(Paragraph(setup_text, self.setup_style))
         
         # Add camera name if available
         if hasattr(panel, 'camera_name') and panel.camera_name:
-            camera_name_text = f"Camera: {panel.camera_name}"
+            camera_name_text = f"Camera: {panel.camera}"
+            if panel.camera_name:
+                camera_name_text += f" ({panel.camera_name})"
             panel_elements.append(Paragraph(camera_name_text, self.action_style))
         
         # Add image
@@ -390,47 +352,61 @@ class PDFExporter:
         
         panel_elements.append(tech_table)
         
-        # Add action description
-        action_text = ""
+        # Add action description and other fields
+        info_text = ""
+        
+        # Camera with color indicator
+        if panel.camera:
+            # Use a small color rect as an indicator
+            r, g, b = camera_color.rgb()
+            hex_color = '#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255))
+            info_text += f'<font color="{hex_color}">■</font> <b>CAMERA:</b> {panel.camera}'
+            if hasattr(panel, 'camera_name') and panel.camera_name:
+                info_text += f" ({panel.camera_name})"
+            info_text += "<br/>"
+        
+        # Action
         if panel.action:
-            action_text += f"<b>ACTION:</b> {panel.action}"
+            info_text += f"<b>ACTION:</b> {panel.action}<br/>"
         
-        if action_text:
-            action_text += f"<br/><b>BGD:</b> {panel.bgd}"
-            if panel.bgd == "Yes" and panel.bgd_notes:
-                action_text += f": {panel.bgd_notes}"
-            panel_elements.append(Paragraph(action_text, self.action_style))
+        # Background
+        if panel.bgd == "Yes" and panel.bgd_notes:
+            info_text += f"<b>BGD:</b> {panel.bgd_notes}<br/>"
         
-        # Add subject if available
+        # Subject
         if hasattr(panel, 'subject') and panel.subject:
-            subject_text = f"<b>SUBJECT:</b> {panel.subject}"
-            panel_elements.append(Paragraph(subject_text, self.action_style))
+            info_text += f"<b>SUBJECT:</b> {panel.subject}<br/>"
         
         # Description
         if panel.description:
-            panel_elements.append(Paragraph(panel.description, self.action_style))
+            info_text += f"{panel.description}<br/>"
         
-        # Additional information sections
-        additional_text = ""
-        
-        # Handle the yes/no toggle fields for additional info
+        # Add additional information sections if they have "Yes" enabled
+        # Hair/Makeup/Wardrobe
         if hasattr(panel, 'hair_makeup_enabled') and panel.hair_makeup_enabled == "Yes" and panel.hair_makeup:
-            additional_text += f"<b>HAIR/MAKEUP:</b> {panel.hair_makeup}<br/>"
+            info_text += f"<b>H/M/W:</b> {panel.hair_makeup}<br/>"
         elif panel.hair_makeup:  # Backward compatibility
-            additional_text += f"<b>HAIR/MAKEUP:</b> {panel.hair_makeup}<br/>"
+            info_text += f"<b>H/M/W:</b> {panel.hair_makeup}<br/>"
         
+        # Props
         if hasattr(panel, 'props_enabled') and panel.props_enabled == "Yes" and panel.props:
-            additional_text += f"<b>PROPS:</b> {panel.props}<br/>"
+            info_text += f"<b>PROPS:</b> {panel.props}<br/>"
         elif panel.props:  # Backward compatibility
-            additional_text += f"<b>PROPS:</b> {panel.props}<br/>"
+            info_text += f"<b>PROPS:</b> {panel.props}<br/>"
         
+        # VFX
         if hasattr(panel, 'vfx_enabled') and panel.vfx_enabled == "Yes" and panel.vfx:
-            additional_text += f"<b>VFX:</b> {panel.vfx}<br/>"
+            info_text += f"<b>VFX:</b> {panel.vfx}<br/>"
         elif panel.vfx:  # Backward compatibility
-            additional_text += f"<b>VFX:</b> {panel.vfx}<br/>"
+            info_text += f"<b>VFX:</b> {panel.vfx}<br/>"
         
-        if additional_text:
-            panel_elements.append(Paragraph(additional_text, self.additional_info_style))
+        # Audio
+        if hasattr(panel, 'audio_notes') and panel.audio_notes:
+            info_text += f"<b>AUDIO:</b> {panel.audio_notes}<br/>"
+        
+        # Add the combined info text
+        if info_text:
+            panel_elements.append(Paragraph(info_text, self.action_style))
         
         # Notes
         if panel.notes:
@@ -541,31 +517,6 @@ class PDFExporter:
             ]))
             
             return img_table
-    
-    def _get_shot_color(self, panel):
-        """Get a color for the shot label based on the scene number."""
-        # Extract scene number
-        scene_num = panel.scene_number
-        
-        # Define a set of colors for different scenes
-        colors_list = [
-            colors.blue,
-            colors.darkgreen,
-            colors.orange,
-            colors.purple,
-            colors.darkred,
-            colors.brown,
-            colors.darkslategray
-        ]
-        
-        # Get color based on the scene number
-        try:
-            scene_int = int(scene_num)
-            color_index = (scene_int - 1) % len(colors_list)
-        except ValueError:
-            color_index = hash(scene_num) % len(colors_list)
-            
-        return colors_list[color_index]
     
     def create_preview(self, panels):
         """
