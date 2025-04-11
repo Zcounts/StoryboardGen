@@ -132,31 +132,29 @@ class StoryboardApp:
     
     def _create_main_layout(self):
         """Create the main application layout."""
-        # Create main paned window to divide panels list and editor
-        # Removed the style parameter that was causing the error
+        # Create main paned window to divide panels list/editor and preview
         self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         self.main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Left frame for panels list
-        self.panels_frame = ttk.Frame(self.main_paned, style="TFrame")
+        # Left paned window to contain panels list and editor
+        self.left_paned = ttk.PanedWindow(self.main_paned, orient=tk.VERTICAL)
         
-        # Right paned window to divide editor and preview
-        # Removed the style parameter here as well
-        self.right_paned = ttk.PanedWindow(self.main_paned, orient=tk.VERTICAL)
+        # Right frame for PDF preview
+        self.right_frame = ttk.Frame(self.main_paned, style="TFrame")
         
         # Add frames to main paned window
-        self.main_paned.add(self.panels_frame, weight=1)
-        self.main_paned.add(self.right_paned, weight=3)
+        self.main_paned.add(self.left_paned, weight=1)
+        self.main_paned.add(self.right_frame, weight=1)
+        
+        # Panels list frame
+        self.panels_frame = ttk.Frame(self.left_paned, style="TFrame")
         
         # Editor frame
-        self.editor_frame = ttk.Frame(self.right_paned, style="TFrame")
+        self.editor_frame = ttk.Frame(self.left_paned, style="TFrame")
         
-        # Preview frame
-        self.preview_frame = ttk.Frame(self.right_paned, style="TFrame")
-        
-        # Add frames to right paned window
-        self.right_paned.add(self.editor_frame, weight=2)
-        self.right_paned.add(self.preview_frame, weight=1)
+        # Add frames to left paned window
+        self.left_paned.add(self.panels_frame, weight=1)
+        self.left_paned.add(self.editor_frame, weight=2)
     
     def _create_components(self):
         """Create and initialize the application components."""
@@ -184,7 +182,7 @@ class StoryboardApp:
         
         # Create PDF preview
         self.pdf_preview = PDFPreview(
-            self.preview_frame,
+            self.right_frame,
             pdf_exporter=self.pdf_exporter
         )
         self.pdf_preview.pack(fill=tk.BOTH, expand=True)
