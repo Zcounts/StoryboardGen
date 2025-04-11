@@ -29,23 +29,15 @@ class PanelEditor(ttk.Frame):
         self.bg_color = "#1E1E1E"  # Dark background
         self.text_color = "#FFFFFF"  # White text
         self.accent_color = "#2D2D30"  # Slightly lighter than background
+        self.input_bg_color = "#3E3E42"  # Darker input background for better contrast
         
-        # Configure styles
-        style = ttk.Style()
-        style.configure("Dark.TFrame", background=self.bg_color)
-        style.configure("Dark.TLabel", background=self.bg_color, foreground=self.text_color)
-        style.configure("Dark.TButton", background=self.accent_color, foreground=self.text_color)
-        style.configure("Dark.TEntry", fieldbackground=self.accent_color, foreground=self.text_color)
-        style.map("Dark.TButton",
-            background=[("active", "#3E3E42")],
-            foreground=[("active", self.text_color)]
-        )
+        # Configure the frame
+        self.configure(style="TFrame")
         
         # Main container with scrollbar
-        self.config(style="Dark.TFrame")
         self.canvas = tk.Canvas(self, background=self.bg_color, highlightthickness=0)
         scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = ttk.Frame(self.canvas, style="Dark.TFrame")
+        self.scrollable_frame = ttk.Frame(self.canvas, style="TFrame")
         
         self.scrollable_frame.bind(
             "<Configure>",
@@ -75,59 +67,59 @@ class PanelEditor(ttk.Frame):
     
     def _create_image_section(self):
         """Create the image display and upload section."""
-        image_frame = ttk.LabelFrame(self.scrollable_frame, text="Panel Image", style="Dark.TLabelframe")
+        image_frame = ttk.LabelFrame(self.scrollable_frame, text="Panel Image")
         image_frame.pack(fill="x", padx=10, pady=5)
         
         # Image display area
-        self.image_container = ttk.Frame(image_frame, width=400, height=300, style="Dark.TFrame")
+        self.image_container = ttk.Frame(image_frame, width=400, height=300)
         self.image_container.pack(padx=10, pady=10)
         self.image_container.pack_propagate(False)  # Keep the frame at fixed size
         
         # "No image" label
-        self.no_image_label = ttk.Label(self.image_container, text="No image selected", style="Dark.TLabel")
+        self.no_image_label = ttk.Label(self.image_container, text="No image selected")
         self.no_image_label.place(relx=0.5, rely=0.5, anchor="center")
         
         # Upload button
-        upload_button = ttk.Button(image_frame, text="Upload Image", command=self._upload_image, style="Dark.TButton")
+        upload_button = ttk.Button(image_frame, text="Upload Image", command=self._upload_image)
         upload_button.pack(pady=(0, 10))
     
     def _create_scene_info_section(self):
         """Create the scene and shot info section."""
-        info_frame = ttk.LabelFrame(self.scrollable_frame, text="Scene Information", style="Dark.TLabelframe")
+        info_frame = ttk.LabelFrame(self.scrollable_frame, text="Scene Information")
         info_frame.pack(fill="x", padx=10, pady=5)
         
         # Grid for labels and inputs
-        info_grid = ttk.Frame(info_frame, style="Dark.TFrame")
+        info_grid = ttk.Frame(info_frame)
         info_grid.pack(fill="x", padx=10, pady=10)
         
         # Scene Number
-        ttk.Label(info_grid, text="Scene Number:", style="Dark.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(info_grid, text="Scene Number:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.scene_number_var = tk.StringVar(value="1")
-        scene_entry = ttk.Entry(info_grid, textvariable=self.scene_number_var, style="Dark.TEntry")
+        scene_entry = ttk.Entry(info_grid, textvariable=self.scene_number_var)
         scene_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         scene_entry.bind("<FocusOut>", self._on_scene_number_change)
         
         # Shot Number (letter)
-        ttk.Label(info_grid, text="Shot Letter:", style="Dark.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(info_grid, text="Shot Letter:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.shot_number_var = tk.StringVar()
-        shot_entry = ttk.Entry(info_grid, textvariable=self.shot_number_var, style="Dark.TEntry")
+        shot_entry = ttk.Entry(info_grid, textvariable=self.shot_number_var)
         shot_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
         
         # Full Shot Number Preview (read-only)
-        ttk.Label(info_grid, text="Full Shot Number:", style="Dark.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(info_grid, text="Full Shot Number:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
         self.full_shot_var = tk.StringVar()
-        full_shot_entry = ttk.Entry(info_grid, textvariable=self.full_shot_var, state="readonly", style="Dark.TEntry")
+        full_shot_entry = ttk.Entry(info_grid, textvariable=self.full_shot_var, state="readonly")
         full_shot_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
         
         # Camera
-        ttk.Label(info_grid, text="Camera:", style="Dark.TLabel").grid(row=0, column=2, sticky="w", padx=5, pady=5)
+        ttk.Label(info_grid, text="Camera:").grid(row=0, column=2, sticky="w", padx=5, pady=5)
         self.camera_var = tk.StringVar(value="Camera 1")
-        ttk.Entry(info_grid, textvariable=self.camera_var, style="Dark.TEntry").grid(row=0, column=3, sticky="ew", padx=5, pady=5)
+        ttk.Entry(info_grid, textvariable=self.camera_var).grid(row=0, column=3, sticky="ew", padx=5, pady=5)
         
         # Lens
-        ttk.Label(info_grid, text="Lens:", style="Dark.TLabel").grid(row=1, column=2, sticky="w", padx=5, pady=5)
+        ttk.Label(info_grid, text="Lens:").grid(row=1, column=2, sticky="w", padx=5, pady=5)
         self.lens_var = tk.StringVar()
-        ttk.Entry(info_grid, textvariable=self.lens_var, style="Dark.TEntry").grid(row=1, column=3, sticky="ew", padx=5, pady=5)
+        ttk.Entry(info_grid, textvariable=self.lens_var).grid(row=1, column=3, sticky="ew", padx=5, pady=5)
         
         # Configure grid columns to expand
         info_grid.columnconfigure(1, weight=1)
@@ -135,41 +127,41 @@ class PanelEditor(ttk.Frame):
     
     def _create_technical_info_section(self):
         """Create the technical info section with Size, Type, Move, Equip."""
-        tech_frame = ttk.LabelFrame(self.scrollable_frame, text="Technical Information", style="Dark.TLabelframe")
+        tech_frame = ttk.LabelFrame(self.scrollable_frame, text="Technical Information")
         tech_frame.pack(fill="x", padx=10, pady=5)
         
         # Grid for the technical info
-        tech_grid = ttk.Frame(tech_frame, style="Dark.TFrame")
+        tech_grid = ttk.Frame(tech_frame)
         tech_grid.pack(fill="x", padx=10, pady=10)
         
         # Size
-        ttk.Label(tech_grid, text="SIZE", style="Dark.TLabel").grid(row=0, column=0, padx=10, pady=5)
+        ttk.Label(tech_grid, text="SIZE").grid(row=0, column=0, padx=10, pady=5)
         self.size_var = tk.StringVar()
-        size_combo = ttk.Combobox(tech_grid, textvariable=self.size_var, style="Dark.TCombobox")
+        size_combo = ttk.Combobox(tech_grid, textvariable=self.size_var)
         size_combo['values'] = tuple(self.custom_values['size'])
         size_combo.grid(row=1, column=0, padx=10, pady=5)
         size_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('size', self.size_var.get()))
         
         # Type
-        ttk.Label(tech_grid, text="TYPE", style="Dark.TLabel").grid(row=0, column=1, padx=10, pady=5)
+        ttk.Label(tech_grid, text="TYPE").grid(row=0, column=1, padx=10, pady=5)
         self.type_var = tk.StringVar()
-        type_combo = ttk.Combobox(tech_grid, textvariable=self.type_var, style="Dark.TCombobox")
+        type_combo = ttk.Combobox(tech_grid, textvariable=self.type_var)
         type_combo['values'] = tuple(self.custom_values['type'])
         type_combo.grid(row=1, column=1, padx=10, pady=5)
         type_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('type', self.type_var.get()))
         
         # Move
-        ttk.Label(tech_grid, text="MOVE", style="Dark.TLabel").grid(row=0, column=2, padx=10, pady=5)
+        ttk.Label(tech_grid, text="MOVE").grid(row=0, column=2, padx=10, pady=5)
         self.move_var = tk.StringVar(value="STATIC")
-        move_combo = ttk.Combobox(tech_grid, textvariable=self.move_var, style="Dark.TCombobox")
+        move_combo = ttk.Combobox(tech_grid, textvariable=self.move_var)
         move_combo['values'] = tuple(self.custom_values['move'])
         move_combo.grid(row=1, column=2, padx=10, pady=5)
         move_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('move', self.move_var.get()))
         
         # Equip
-        ttk.Label(tech_grid, text="EQUIP", style="Dark.TLabel").grid(row=0, column=3, padx=10, pady=5)
+        ttk.Label(tech_grid, text="EQUIP").grid(row=0, column=3, padx=10, pady=5)
         self.equip_var = tk.StringVar(value="STICKS")
-        equip_combo = ttk.Combobox(tech_grid, textvariable=self.equip_var, style="Dark.TCombobox")
+        equip_combo = ttk.Combobox(tech_grid, textvariable=self.equip_var)
         equip_combo['values'] = tuple(self.custom_values['equip'])
         equip_combo.grid(row=1, column=3, padx=10, pady=5)
         equip_combo.bind("<KeyRelease>", lambda e: self._add_custom_value('equip', self.equip_var.get()))
@@ -188,36 +180,38 @@ class PanelEditor(ttk.Frame):
     
     def _create_action_info_section(self):
         """Create the action information section."""
-        action_frame = ttk.LabelFrame(self.scrollable_frame, text="Action Information", style="Dark.TLabelframe")
+        action_frame = ttk.LabelFrame(self.scrollable_frame, text="Action Information")
         action_frame.pack(fill="x", padx=10, pady=5)
         
         # Grid for action info
-        action_grid = ttk.Frame(action_frame, style="Dark.TFrame")
+        action_grid = ttk.Frame(action_frame)
         action_grid.pack(fill="x", padx=10, pady=10)
         
         # Action
-        ttk.Label(action_grid, text="Action:", style="Dark.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(action_grid, text="Action:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.action_var = tk.StringVar()
-        ttk.Entry(action_grid, textvariable=self.action_var, style="Dark.TEntry").grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        ttk.Entry(action_grid, textvariable=self.action_var).grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         
         # Background
-        ttk.Label(action_grid, text="Background:", style="Dark.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(action_grid, text="Background:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.bgd_var = tk.StringVar(value="No")
-        bgd_frame = ttk.Frame(action_grid, style="Dark.TFrame")
+        bgd_frame = ttk.Frame(action_grid)
         bgd_frame.grid(row=1, column=1, sticky="w", padx=5, pady=5)
         
-        ttk.Radiobutton(bgd_frame, text="Yes", variable=self.bgd_var, value="Yes", command=self._toggle_bgd_notes, style="Dark.TRadiobutton").pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(bgd_frame, text="No", variable=self.bgd_var, value="No", command=self._toggle_bgd_notes, style="Dark.TRadiobutton").pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(bgd_frame, text="Yes", variable=self.bgd_var, value="Yes", command=self._toggle_bgd_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(bgd_frame, text="No", variable=self.bgd_var, value="No", command=self._toggle_bgd_notes).pack(side=tk.LEFT, padx=5)
         
         # Background notes (initially hidden)
-        self.bgd_notes_label = ttk.Label(action_grid, text="Background Notes:", style="Dark.TLabel")
+        self.bgd_notes_label = ttk.Label(action_grid, text="Background Notes:")
         self.bgd_notes_var = tk.StringVar()
-        self.bgd_notes_entry = ttk.Entry(action_grid, textvariable=self.bgd_notes_var, style="Dark.TEntry")
+        self.bgd_notes_entry = ttk.Entry(action_grid, textvariable=self.bgd_notes_var)
         
         # Description
-        ttk.Label(action_grid, text="Description:", style="Dark.TLabel").grid(row=3, column=0, sticky="nw", padx=5, pady=5)
+        ttk.Label(action_grid, text="Description:").grid(row=3, column=0, sticky="nw", padx=5, pady=5)
         self.description_var = tk.StringVar()
-        description_entry = tk.Text(action_grid, wrap=tk.WORD, height=4, width=40, bg=self.accent_color, fg=self.text_color)
+        
+        # Custom text widget with improved styling
+        description_entry = tk.Text(action_grid, wrap=tk.WORD, height=4, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         description_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
         
         # Connect text widget with StringVar (requires custom handling)
@@ -227,9 +221,11 @@ class PanelEditor(ttk.Frame):
         description_entry.bind("<KeyRelease>", update_description_var)
         
         # Notes
-        ttk.Label(action_grid, text="Notes:", style="Dark.TLabel").grid(row=4, column=0, sticky="nw", padx=5, pady=5)
+        ttk.Label(action_grid, text="Notes:").grid(row=4, column=0, sticky="nw", padx=5, pady=5)
         self.notes_var = tk.StringVar()
-        notes_entry = tk.Text(action_grid, wrap=tk.WORD, height=4, width=40, bg=self.accent_color, fg=self.text_color)
+        
+        # Custom styled text widget
+        notes_entry = tk.Text(action_grid, wrap=tk.WORD, height=4, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         notes_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
         
         # Connect text widget with StringVar (requires custom handling)
@@ -247,17 +243,19 @@ class PanelEditor(ttk.Frame):
     
     def _create_additional_info_section(self):
         """Create the section for hair/makeup, props, and VFX."""
-        additional_frame = ttk.LabelFrame(self.scrollable_frame, text="Additional Information", style="Dark.TLabelframe")
+        additional_frame = ttk.LabelFrame(self.scrollable_frame, text="Additional Information")
         additional_frame.pack(fill="x", padx=10, pady=5)
         
         # Grid for additional info
-        additional_grid = ttk.Frame(additional_frame, style="Dark.TFrame")
+        additional_grid = ttk.Frame(additional_frame)
         additional_grid.pack(fill="x", padx=10, pady=10)
         
         # Hair/Makeup
-        ttk.Label(additional_grid, text="Hair/Makeup:", style="Dark.TLabel").grid(row=0, column=0, sticky="nw", padx=5, pady=5)
+        ttk.Label(additional_grid, text="Hair/Makeup:").grid(row=0, column=0, sticky="nw", padx=5, pady=5)
         self.hair_makeup_var = tk.StringVar()
-        hair_makeup_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.accent_color, fg=self.text_color)
+        
+        # Custom styled text widget
+        hair_makeup_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         hair_makeup_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         
         # Connect text widget with StringVar
@@ -267,9 +265,11 @@ class PanelEditor(ttk.Frame):
         hair_makeup_entry.bind("<KeyRelease>", update_hair_makeup_var)
         
         # Props
-        ttk.Label(additional_grid, text="Props:", style="Dark.TLabel").grid(row=1, column=0, sticky="nw", padx=5, pady=5)
+        ttk.Label(additional_grid, text="Props:").grid(row=1, column=0, sticky="nw", padx=5, pady=5)
         self.props_var = tk.StringVar()
-        props_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.accent_color, fg=self.text_color)
+        
+        # Custom styled text widget
+        props_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         props_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
         
         # Connect text widget with StringVar
@@ -279,9 +279,11 @@ class PanelEditor(ttk.Frame):
         props_entry.bind("<KeyRelease>", update_props_var)
         
         # VFX
-        ttk.Label(additional_grid, text="VFX:", style="Dark.TLabel").grid(row=2, column=0, sticky="nw", padx=5, pady=5)
+        ttk.Label(additional_grid, text="VFX:").grid(row=2, column=0, sticky="nw", padx=5, pady=5)
         self.vfx_var = tk.StringVar()
-        vfx_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.accent_color, fg=self.text_color)
+        
+        # Custom styled text widget
+        vfx_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         vfx_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
         
         # Connect text widget with StringVar
@@ -299,7 +301,7 @@ class PanelEditor(ttk.Frame):
         self.vfx_entry = vfx_entry
         
         # Save changes button
-        save_button = ttk.Button(additional_frame, text="Save Changes", command=self._save_changes, style="Dark.TButton")
+        save_button = ttk.Button(additional_frame, text="Save Changes", command=self._save_changes)
         save_button.pack(pady=10)
     
     def _on_scene_number_change(self, event=None):
@@ -373,7 +375,7 @@ class PanelEditor(ttk.Frame):
                 self.image_display = display_image
                 
                 # Create and display the image label
-                image_label = ttk.Label(self.image_container, image=display_image, style="Dark.TLabel")
+                image_label = ttk.Label(self.image_container, image=display_image)
                 image_label.place(relx=0.5, rely=0.5, anchor="center")
         else:
             # Show the "No image" label
