@@ -1,4 +1,4 @@
-# Update to app.py
+# app.py
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -31,8 +31,19 @@ class StoryboardApp:
     
     def _create_menu(self):
         """Create the application menu bar."""
-        # (Same as before)
-        # ...
+        menubar = tk.Menu(self.master)
+        self.master.config(menu=menubar)
+        
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="New Project", command=self._new_project)
+        file_menu.add_command(label="Open Project", command=self._open_project)
+        file_menu.add_command(label="Save Project", command=self._save_project)
+        file_menu.add_separator()
+        file_menu.add_command(label="Export to PDF", command=self._export_pdf)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.master.quit)
     
     def _create_main_frame(self):
         """Create the main application frame."""
@@ -56,8 +67,44 @@ class StoryboardApp:
     
     def _setup_panels_list(self):
         """Set up the panels list in the left frame."""
-        # (Same as before, we'll enhance this later)
-        # ...
+        # Panel list label
+        ttk.Label(self.left_frame, text="Storyboard Panels").pack(pady=(0, 5), anchor=tk.W)
+        
+        # Create a listbox frame
+        list_frame = ttk.Frame(self.left_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Add a scrollbar
+        scrollbar = ttk.Scrollbar(list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Create the listbox
+        self.panels_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set)
+        self.panels_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.panels_listbox.yview)
+        
+        # Bind selection event
+        self.panels_listbox.bind('<<ListboxSelect>>', self._on_panel_select)
+        
+        # Button frame for panel management
+        button_frame = ttk.Frame(self.left_frame)
+        button_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Add panel button
+        add_button = ttk.Button(button_frame, text="Add", command=self._add_panel)
+        add_button.pack(side=tk.LEFT, padx=2)
+        
+        # Delete panel button
+        delete_button = ttk.Button(button_frame, text="Delete", command=self._delete_panel)
+        delete_button.pack(side=tk.LEFT, padx=2)
+        
+        # Move up button
+        up_button = ttk.Button(button_frame, text="Up", command=self._move_panel_up)
+        up_button.pack(side=tk.LEFT, padx=2)
+        
+        # Move down button
+        down_button = ttk.Button(button_frame, text="Down", command=self._move_panel_down)
+        down_button.pack(side=tk.LEFT, padx=2)
     
     def _setup_panel_editor(self):
         """Set up the panel editor in the right frame."""
@@ -206,10 +253,36 @@ class StoryboardApp:
             return
         
         try:
-            # For now, show a placeholder message
-            messagebox.showinfo("Export", "PDF export feature will be implemented in the next step.")
+            # Create a PDF exporter
+            exporter = PDFExporter()
+            
+            # Export the panels
+            project_name = self.current_project or "Storyboard"
+            pdf_path = exporter.export_storyboard(self.panels, export_path, project_name)
+            
+            messagebox.showinfo("Success", f"Storyboard exported to {pdf_path}")
+            
+            # Ask if user wants to open the PDF
+            if messagebox.askyesno("Open PDF", "Would you like to open the exported PDF?"):
+                self._open_file(pdf_path)
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to export PDF: {e}")
+            messagebox.showerror("Error", f"Failed to export PDF: {str(e)}")
+    
+    def _open_file(self, path):
+        """Open a file with the default application."""
+        import os
+        import platform
+        import subprocess
+        
+        try:
+            if platform.system() == 'Darwin':  # macOS
+                subprocess.call(('open', path))
+            elif platform.system() == 'Windows':  # Windows
+                os.startfile(path)
+            else:  # linux variants
+                subprocess.call(('xdg-open', path))
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open file: {str(e)}")
     
     def _add_panel(self):
         """Add a new panel to the storyboard."""
@@ -325,53 +398,3 @@ class StoryboardApp:
         # Update selection
         if 0 <= self.current_panel_index < len(self.panels):
             self.panels_listbox.selection_set(self.current_panel_index)
-
-# Then update the _export_pdf method:
-
-def _export_pdf(self):
-    """Export the storyboard as PDF."""
-    if not self.panels:
-        messagebox.showerror("Error", "No panels to export. Add some panels first.")
-        return
-    
-    # Ask for export location
-    export_path = filedialog.asksaveasfilename(
-        title="Export Storyboard",
-        defaultextension=".pdf",
-        filetypes=[("PDF files", "*.pdf")]
-    )
-    
-    if not export_path:
-        return
-    
-    try:
-        # Create a PDF exporter
-        exporter = PDFExporter()
-        
-        # Export the panels
-        project_name = self.current_project or "Storyboard"
-        pdf_path = exporter.export_storyboard(self.panels, export_path, project_name)
-        
-        messagebox.showinfo("Success", f"Storyboard exported to {pdf_path}")
-        
-        # Ask if user wants to open the PDF
-        if messagebox.askyesno("Open PDF", "Would you like to open the exported PDF?"):
-            self._open_file(pdf_path)
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to export PDF: {str(e)}")
-    
-def _open_file(self, path):
-    """Open a file with the default application."""
-    import os
-    import platform
-    import subprocess
-    
-    try:
-        if platform.system() == 'Darwin':  # macOS
-            subprocess.call(('open', path))
-        elif platform.system() == 'Windows':  # Windows
-            os.startfile(path)
-        else:  # linux variants
-            subprocess.call(('xdg-open', path))
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to open file: {str(e)}")
