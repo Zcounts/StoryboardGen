@@ -298,8 +298,7 @@ class PanelsList(ttk.Frame):
         item_frame.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
         
         # Create a horizontal layout
-        item_style = "Selected.TFrame" if index == self.selected_index else "TFrame"
-        info_frame = ttk.Frame(item_frame, style=item_style)
+        info_frame = tk.Frame(item_frame)
         if index == self.selected_index:
             info_frame.configure(background=self.selected_color)
         else:
