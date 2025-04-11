@@ -167,29 +167,43 @@ class PanelsList(ttk.Frame):
             # Update the visual selection in the UI
             for i, frame in enumerate(self.panel_frames):
                 if i == index:
-                    # Use a custom frame with background color for selected item
+                    # Use colored background for selected item
                     frame.configure(style="Selected.TFrame")
+                    frame.configure(background=self.selected_color)
+                    
                     # Apply distinct style to all child labels
                     for child in frame.winfo_children():
                         if isinstance(child, ttk.Label):
                             child.configure(style="Selected.TLabel")
+                            child.configure(background=self.selected_color, foreground="white")
                         elif isinstance(child, ttk.Frame):
+                            child.configure(background=self.selected_color)
                             # Also handle nested frames
                             for subchild in child.winfo_children():
                                 if isinstance(subchild, ttk.Label):
                                     subchild.configure(style="Selected.TLabel")
+                                    subchild.configure(background=self.selected_color, foreground="white")
+                                elif isinstance(subchild, tk.Label):  # For image labels
+                                    subchild.configure(background=self.selected_color)
                 else:
                     # Use standard style for unselected items
                     frame.configure(style="TFrame")
+                    frame.configure(background=self.bg_color)
+                    
                     # Reset all child labels
                     for child in frame.winfo_children():
                         if isinstance(child, ttk.Label):
                             child.configure(style="TLabel")
+                            child.configure(background=self.bg_color, foreground=self.text_color)
                         elif isinstance(child, ttk.Frame):
+                            child.configure(background=self.bg_color)
                             # Also handle nested frames
                             for subchild in child.winfo_children():
                                 if isinstance(subchild, ttk.Label):
                                     subchild.configure(style="TLabel")
+                                    subchild.configure(background=self.bg_color, foreground=self.text_color)
+                                elif isinstance(subchild, tk.Label):  # For image labels
+                                    subchild.configure(background=self.bg_color)
             
             # Make sure the selected panel is visible
             self._ensure_visible(index)
@@ -265,6 +279,12 @@ class PanelsList(ttk.Frame):
         item_style = "Selected.TFrame" if index == self.selected_index else "TFrame"
         item_frame = ttk.Frame(self.panels_frame, style=item_style, padding=5)
         
+        # Configure background color directly
+        if index == self.selected_index:
+            item_frame.configure(background=self.selected_color)
+        else:
+            item_frame.configure(background=self.bg_color)
+        
         # Store reference to the frame
         self.panel_frames.append(item_frame)
         
@@ -279,6 +299,11 @@ class PanelsList(ttk.Frame):
         
         # Create a horizontal layout
         info_frame = ttk.Frame(item_frame, style=item_style)
+        if index == self.selected_index:
+            info_frame.configure(background=self.selected_color)
+        else:
+            info_frame.configure(background=self.bg_color)
+            
         info_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         # Also make this frame clickable
@@ -292,6 +317,11 @@ class PanelsList(ttk.Frame):
             style=label_style,
             font=("Arial", 10, "bold")
         )
+        if index == self.selected_index:
+            shot_label.configure(background=self.selected_color, foreground="white")
+        else:
+            shot_label.configure(background=self.bg_color, foreground=self.text_color)
+            
         shot_label.pack(anchor=tk.W)
         
         # Make label clickable too
@@ -302,12 +332,22 @@ class PanelsList(ttk.Frame):
             # Limit to first 50 chars
             preview = panel.description[:50] + "..." if len(panel.description) > 50 else panel.description
             desc_label = ttk.Label(info_frame, text=preview, style=label_style)
+            if index == self.selected_index:
+                desc_label.configure(background=self.selected_color, foreground="white")
+            else:
+                desc_label.configure(background=self.bg_color, foreground=self.text_color)
+                
             desc_label.pack(anchor=tk.W)
             # Make this label clickable too
             desc_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
         
         # Add camera info
         camera_label = ttk.Label(info_frame, text=f"Camera: {panel.camera}", style=label_style)
+        if index == self.selected_index:
+            camera_label.configure(background=self.selected_color, foreground="white")
+        else:
+            camera_label.configure(background=self.bg_color, foreground=self.text_color)
+            
         camera_label.pack(anchor=tk.W)
         # Make this label clickable too
         camera_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
@@ -316,7 +356,8 @@ class PanelsList(ttk.Frame):
         thumbnail = panel.get_thumbnail()
         if thumbnail:
             self.thumbnails.append(thumbnail)  # Keep reference
-            thumb_label = ttk.Label(item_frame, image=thumbnail, style=label_style)
+            thumb_label = tk.Label(item_frame, image=thumbnail, borderwidth=0, 
+                                  background=self.selected_color if index == self.selected_index else self.bg_color)
             thumb_label.pack(side=tk.RIGHT, padx=5)
             
             # Also make thumbnail clickable
@@ -340,22 +381,36 @@ class PanelsList(ttk.Frame):
             if is_enter:
                 # Highlight on hover
                 frame.configure(style="Hover.TFrame")
+                frame.configure(background=self.hover_color)
+                
                 # Change text color too
                 for child in frame.winfo_children():
                     if isinstance(child, ttk.Label):
                         child.configure(style="Hover.TLabel")
+                        child.configure(background=self.hover_color, foreground=self.text_color)
                     elif isinstance(child, ttk.Frame):
+                        child.configure(background=self.hover_color)
                         for subchild in child.winfo_children():
                             if isinstance(subchild, ttk.Label):
                                 subchild.configure(style="Hover.TLabel")
+                                subchild.configure(background=self.hover_color, foreground=self.text_color)
+                            elif isinstance(subchild, tk.Label):  # For image labels
+                                subchild.configure(background=self.hover_color)
             else:
                 # Remove highlight
                 frame.configure(style="TFrame")
+                frame.configure(background=self.bg_color)
+                
                 # Reset text color
                 for child in frame.winfo_children():
                     if isinstance(child, ttk.Label):
                         child.configure(style="TLabel")
+                        child.configure(background=self.bg_color, foreground=self.text_color)
                     elif isinstance(child, ttk.Frame):
+                        child.configure(background=self.bg_color)
                         for subchild in child.winfo_children():
                             if isinstance(subchild, ttk.Label):
                                 subchild.configure(style="TLabel")
+                                subchild.configure(background=self.bg_color, foreground=self.text_color)
+                            elif isinstance(subchild, tk.Label):  # For image labels
+                                subchild.configure(background=self.bg_color)
