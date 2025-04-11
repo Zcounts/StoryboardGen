@@ -18,6 +18,32 @@ class PDFExporter:
         """Initialize the PDF exporter."""
         # Set up styles
         self._setup_styles()
+        
+        # Camera colors
+        self.camera_colors = {
+            "Camera 1": colors.darkgreen,  # Green
+            "Camera 2": colors.darkred,    # Red
+            "Camera 3": colors.purple,     # Purple
+            "Camera 4": colors.blue,       # Blue
+            "Camera 5": colors.orange,     # Orange
+            "Camera 6": colors.brown,      # Brown
+        }
+        
+        # Shot letter colors
+        self.shot_colors = {
+            "A": colors.blue,
+            "B": colors.darkgreen,
+            "C": colors.orange,
+            "D": colors.purple,
+            "E": colors.darkred,
+            "F": colors.brown,
+            "G": colors.darkslategray,
+            "H": colors.gold,
+            "I": colors.cyan,
+            "J": colors.pink,
+            "K": colors.teal,
+            "L": colors.lavender,
+        }
     
     def _setup_styles(self):
         """Set up paragraph styles for the PDF."""
@@ -115,9 +141,24 @@ class PDFExporter:
             bottomMargin=1*cm
         )
         
-        # Sort panels by scene and then by shot
-        sorted_panels = sorted(panels, key=lambda p: (int(p.scene_number) if p.scene_number.isdigit() else float('inf'), 
-                                                    p.shot_number))
+        # Group panels by scene and sort within each scene
+        scene_groups = {}
+        for panel in panels:
+            scene_number = panel.scene_number
+            if scene_number not in scene_groups:
+                scene_groups[scene_number] = []
+            scene_groups[scene_number].append(panel)
+        
+        # Sort panels within each scene
+        for scene_number, scene_panels in scene_groups.items():
+            scene_groups[scene_number] = sorted(
+                scene_panels,
+                key=lambda p: p.shot_number if p.shot_number else ""
+            )
+        
+        # Sort scenes numerically
+        sorted_scenes = sorted(scene_groups.keys(), 
+                             key=lambda s: int(s) if s.isdigit() else float('inf'))
         
         # Create content elements
         elements = []
@@ -126,18 +167,7 @@ class PDFExporter:
         elements.append(Paragraph(f"<b>{project_name}</b>", self.title_style))
         elements.append(Spacer(1, 5*mm))
         
-        # Group panels by scene
-        scene_groups = {}
-        for panel in sorted_panels:
-            scene_number = panel.scene_number
-            if scene_number not in scene_groups:
-                scene_groups[scene_number] = []
-            scene_groups[scene_number].append(panel)
-        
-        # Sort scenes numerically
-        sorted_scenes = sorted(scene_groups.keys(), key=lambda s: int(s) if s.isdigit() else float('inf'))
-        
-        # Process each scene
+        # Process each scene - each scene starts on a new page
         for scene_number in sorted_scenes:
             # Add scene header
             elements.append(Paragraph(f"<b>Scene {scene_number}</b>", self.header_style))
@@ -147,11 +177,10 @@ class PDFExporter:
             scene_panels = scene_groups[scene_number]
             
             # Process panels in groups of 6 (for 3 columns x 2 rows per page)
-            # This is a different approach than before where we had 3 panels per row
             panel_groups = [scene_panels[i:i+6] for i in range(0, len(scene_panels), 6)]
             
             # Process each group
-            for group in panel_groups:
+            for i, group in enumerate(panel_groups):
                 # Create panel elements for this page
                 panel_elements = []
                 
@@ -183,13 +212,21 @@ class PDFExporter:
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
                 ]))
                 
+                # Add a sub-header for multi-page scenes
+                if len(panel_groups) > 1:
+                    elements.append(Paragraph(f"Page {i+1} of {len(panel_groups)}", self.section_header_style))
+                    elements.append(Spacer(1, 2*mm))
+                
                 # Add the grid to the document
                 elements.append(grid)
-                elements.append(PageBreak())  # Add a page break after each grid
+                
+                # Add page break after each grid except the last one in the scene
+                if i < len(panel_groups) - 1:
+                    elements.append(PageBreak())
             
-        # Remove the last page break if there is one
-        if isinstance(elements[-1], PageBreak):
-            elements.pop()
+            # Add page break after each scene (except the last one)
+            if scene_number != sorted_scenes[-1]:
+                elements.append(PageBreak())
         
         # Build the PDF
         doc.build(elements)
@@ -201,8 +238,15 @@ class PDFExporter:
         # Main container for the panel
         panel_elements = []
         
+        # Get shot letter for color
+        shot_letter = panel.shot_number[0] if panel.shot_number else ""
+        shot_color = self.shot_colors.get(shot_letter, colors.gray)
+        
+        # Get camera color
+        camera_color = self.camera_colors.get(panel.camera, colors.gray)
+        
         # Create header row with shot info
-        shot_text = panel.get_full_shot_number() if hasattr(panel, 'get_full_shot_number') else f"{panel.scene_number}{panel.shot_number}"
+        shot_text = f"{panel.scene_number}{panel.shot_number} - {panel.camera}"
         header_data = [
             [
                 Paragraph(shot_text, self.shot_style),
@@ -224,7 +268,7 @@ class PDFExporter:
         # Style the header table
         header_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BACKGROUND', (0, 0), (0, 0), self._get_shot_color(panel)),
+            ('BACKGROUND', (0, 0), (0, 0), camera_color),  # Use camera color for header background
             ('TEXTCOLOR', (0, 0), (0, 0), colors.white),
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('ALIGN', (-1, 0), (-1, 0), 'RIGHT'),
@@ -313,9 +357,9 @@ class PDFExporter:
             colWidths=[6.0*cm],
         )
         
-        # Style the panel table with a border
+        # Style the panel table with a border using shot color
         panel_table.setStyle(TableStyle([
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+            ('BOX', (0, 0), (-1, -1), 0.5, shot_color),  # Use shot color for box outline
             ('TOPPADDING', (0, 0), (-1, -1), 1),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
             ('LEFTPADDING', (0, 0), (-1, -1), 1),
