@@ -12,6 +12,7 @@ from storyboard_generator.panel_editor import PanelEditor
 from storyboard_generator.panels_list import PanelsList
 from storyboard_generator.pdf_exporter import PDFExporter
 from storyboard_generator.pdf_preview import PDFPreview
+from storyboard_generator.shot_list import ShotList
 
 class StoryboardApp:
     """Main application class for the Storyboard Generator."""
@@ -117,6 +118,8 @@ class StoryboardApp:
         file_menu.add_command(label="Save Project As", command=self._save_project_as)
         file_menu.add_separator()
         file_menu.add_command(label="Export to PDF", command=self._export_to_pdf)
+        file_menu.add_command(label="Export Shot List to PDF", command=self._export_shot_list_to_pdf)
+        file_menu.add_command(label="Export Shot List to XML", command=self._export_shot_list_to_xml)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self._exit_app)
         
@@ -132,15 +135,15 @@ class StoryboardApp:
     
     def _create_main_layout(self):
         """Create the main application layout."""
-        # Create main paned window to divide panels list/editor and preview
+        # Create main paned window to divide panels list/editor and preview/shot list
         self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         self.main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Left paned window to contain panels list and editor
         self.left_paned = ttk.PanedWindow(self.main_paned, orient=tk.VERTICAL)
         
-        # Right frame for PDF preview
-        self.right_frame = ttk.Frame(self.main_paned, style="TFrame")
+        # Right frame for PDF preview and Shot List (with tabs)
+        self.right_frame = ttk.Frame(self.main_paned)
         
         # Add frames to main paned window
         self.main_paned.add(self.left_paned, weight=1)
@@ -155,6 +158,18 @@ class StoryboardApp:
         # Add frames to left paned window
         self.left_paned.add(self.panels_frame, weight=1)
         self.left_paned.add(self.editor_frame, weight=2)
+        
+        # Create notebook (tabs) for right side (preview and shot list)
+        self.right_notebook = ttk.Notebook(self.right_frame)
+        self.right_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Create tab frames
+        self.preview_tab = ttk.Frame(self.right_notebook)
+        self.shot_list_tab = ttk.Frame(self.right_notebook)
+        
+        # Add tabs to notebook
+        self.right_notebook.add(self.preview_tab, text="Storyboard Preview")
+        self.right_notebook.add(self.shot_list_tab, text="Shot List")
     
     def _create_components(self):
         """Create and initialize the application components."""
@@ -180,12 +195,19 @@ class StoryboardApp:
         )
         self.panel_editor.pack(fill=tk.BOTH, expand=True)
         
-        # Create PDF preview
+        # Create PDF preview (in preview tab)
         self.pdf_preview = PDFPreview(
-            self.right_frame,
+            self.preview_tab,
             pdf_exporter=self.pdf_exporter
         )
         self.pdf_preview.pack(fill=tk.BOTH, expand=True)
+        
+        # Create Shot List (in shot list tab)
+        self.shot_list = ShotList(
+            self.shot_list_tab,
+            app=self
+        )
+        self.shot_list.pack(fill=tk.BOTH, expand=True)
     
     def _update_title(self):
         """Update the window title with the current project name."""
@@ -220,6 +242,7 @@ class StoryboardApp:
         self.panels_list.update_panels(self.panels)
         self.panel_editor.load_panel(None)
         self.pdf_preview.update_preview(None)
+        self.shot_list.update()
         
         # Update window title
         self._update_title()
@@ -272,6 +295,7 @@ class StoryboardApp:
             
             # Update UI
             self.panels_list.update_panels(self.panels)
+            self.shot_list.update()
             
             # Select first panel if available
             if self.panels:
@@ -409,6 +433,16 @@ class StoryboardApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export to PDF: {str(e)}")
     
+    def _export_shot_list_to_pdf(self):
+        """Export the shot list to a PDF file."""
+        if self.shot_list:
+            self.shot_list._export_to_pdf()
+    
+    def _export_shot_list_to_xml(self):
+        """Export the shot list to an XML file."""
+        if self.shot_list:
+            self.shot_list._export_to_xml()
+    
     def _open_file(self, file_path):
         """Open a file with the default application."""
         import subprocess
@@ -467,12 +501,24 @@ class StoryboardApp:
             # Use the scene number of the last panel
             last_panel = self.panels[-1]
             panel.scene_number = last_panel.scene_number
+            
+            # If setup numbers exist, use the same one
+            if hasattr(last_panel, 'setup_number'):
+                panel.setup_number = last_panel.setup_number
+            
+            # If the last panel has a camera, use the same one
+            panel.camera = last_panel.camera
+            
+            # If camera name exists, use the same one
+            if hasattr(last_panel, 'camera_name'):
+                panel.camera_name = last_panel.camera_name
         
         # Add to the panels list
         self.panels.append(panel)
         
         # Update panels list
         self.panels_list.update_panels(self.panels)
+        self.shot_list.update()
         
         # Select the new panel
         self.panels_list.select_panel(len(self.panels) - 1)
@@ -494,6 +540,7 @@ class StoryboardApp:
                 
                 # Update panels list
                 self.panels_list.update_panels(self.panels)
+                self.shot_list.update()
                 
                 # Select an appropriate panel
                 if self.panels:
@@ -518,6 +565,7 @@ class StoryboardApp:
             
             # Update panels list
             self.panels_list.update_panels(self.panels)
+            self.shot_list.update()
             
             # Select the moved panel
             self.panels_list.select_panel(index-1)
@@ -535,6 +583,7 @@ class StoryboardApp:
             
             # Update panels list
             self.panels_list.update_panels(self.panels)
+            self.shot_list.update()
             
             # Select the moved panel
             self.panels_list.select_panel(index+1)
@@ -569,6 +618,7 @@ class StoryboardApp:
             
             # Update panels list
             self.panels_list.update_panels(self.panels)
+            self.shot_list.update()
             
             # Select the new panel
             self.panels_list.select_panel(index + 1)
@@ -583,6 +633,7 @@ class StoryboardApp:
         """Handle updates to a panel."""
         # Update the panels list display
         self.panels_list.update_panels(self.panels)
+        self.shot_list.update()
         
         # Ensure the same panel stays selected
         index = next((i for i, p in enumerate(self.panels) if p.id == panel.id), -1)
