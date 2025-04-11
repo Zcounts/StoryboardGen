@@ -145,7 +145,8 @@ class PanelEditor(ttk.Frame):
         # Shot Number (letter)
         ttk.Label(info_grid, text="Shot Letter:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.shot_number_var = tk.StringVar()
-        shot_entry = ttk.Entry(info_grid,
+        shot_entry = ttk.Entry(info_grid, textvariable=self.shot_number_var)
+        shot_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
         shot_entry.bind("<KeyRelease>", self._on_field_change)
         
         # Full Shot Number Preview (read-only)
