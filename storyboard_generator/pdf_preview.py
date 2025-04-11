@@ -4,15 +4,16 @@ from tkinter import ttk
 import os
 from PIL import Image, ImageTk
 import io
+import sys
 
 class PDFPreview(ttk.Frame):
-    """UI component for previewing a panel as it will appear in the PDF."""
+    """UI component for previewing a page of panels as it will appear in the PDF."""
     
     def __init__(self, master, pdf_exporter=None):
         """Initialize the preview widget."""
         super().__init__(master)
         self.pdf_exporter = pdf_exporter
-        self.current_panel = None
+        self.current_panels = []
         self.preview_image = None
         
         # Set theme colors
@@ -39,6 +40,14 @@ class PDFPreview(ttk.Frame):
         )
         self.preview_canvas.pack(fill=tk.BOTH, expand=True)
         
+        # Add scrollbar for previewing
+        scrollbar = ttk.Scrollbar(self.preview_container, orient="vertical", command=self.preview_canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.preview_canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Bind mouse wheel scrolling
+        self.preview_canvas.bind("<MouseWheel>", self._on_mousewheel)
+        
         # Label for when no panel is selected
         self.no_panel_label = ttk.Label(
             self.preview_canvas,
@@ -48,16 +57,18 @@ class PDFPreview(ttk.Frame):
         )
         self.no_panel_label.place(relx=0.5, rely=0.5, anchor="center")
     
+    def _on_mousewheel(self, event):
+        """Handle mouse wheel scrolling."""
+        self.preview_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    
     def update_preview(self, panel):
         """
-        Update the preview with the given panel.
+        Update the preview with the given panel and its surrounding panels.
         
         Args:
             panel: The Panel object to preview, or None to clear
         """
-        self.current_panel = panel
-        
-        # Clear any existing content
+        # Clear canvas
         self.preview_canvas.delete("all")
         
         if not panel:
@@ -68,262 +79,300 @@ class PDFPreview(ttk.Frame):
         # Hide the "no panel" label
         self.no_panel_label.place_forget()
         
+        # Get the app object (parent of parent of this widget)
+        app = self.master.master
+        
+        # Try to get a list of panels from the same scene
+        self.current_panels = []
+        found_panel = False
+        
+        if hasattr(app, 'panels'):
+            scene_panels = []
+            current_scene = panel.scene_number
+            
+            # Find all panels in the same scene
+            for p in app.panels:
+                if p.scene_number == current_scene:
+                    scene_panels.append(p)
+                    if p == panel:
+                        found_panel = True
+            
+            # Include panels from the same scene
+            self.current_panels = scene_panels
+            
+            # If no panels found in the same scene or the panel is not in the list,
+            # fallback to just previewing this panel
+            if not found_panel:
+                self.current_panels = [panel]
+        else:
+            # Fallback to just previewing this panel
+            self.current_panels = [panel]
+        
         try:
             # Generate a preview using the PDF exporter
             if self.pdf_exporter:
-                # Draw a panel representation
-                panel_width = self.preview_canvas.winfo_width() - 40
-                panel_height = self.preview_canvas.winfo_height() - 40
+                # Use the PDF exporter to create a PDF preview
+                pdf_data = self.pdf_exporter.create_preview(self.current_panels)
                 
-                # Make sure we have valid dimensions
-                if panel_width <= 0:
-                    panel_width = 300
-                if panel_height <= 0:
-                    panel_height = 400
+                # Convert the PDF to an image for display
+                # We'll use a simple message first
+                preview_img = None
                 
-                # Draw the panel with a dark background that's visible
-                frame = self.preview_canvas.create_rectangle(
-                    20, 20, 20 + panel_width, 20 + panel_height,
-                    outline="#555555", width=2,
-                    fill="#333333"  # Dark gray fill for visibility
-                )
-                
-                # Draw header section
-                header_height = 30
-                header_color = self._get_scene_color(panel)
-                header = self.preview_canvas.create_rectangle(
-                    20, 20, 20 + panel_width, 20 + header_height,
-                    fill=header_color,
-                    outline=header_color  # Same color as fill to avoid white border
-                )
-                
-                # Add shot number text
-                shot_text = f"Scene {panel.scene_number}{panel.shot_number}"
-                self.preview_canvas.create_text(
-                    30, 20 + header_height//2,
-                    text=shot_text,
-                    fill=self.text_color,
-                    anchor="w",
-                    font=("Arial", 10, "bold")
-                )
-                
-                # Add lens info if available
-                if panel.lens:
+                try:
+                    # If poppler/pdf2image is available, we can convert PDF to image
+                    from pdf2image import convert_from_bytes
+                    pages = convert_from_bytes(pdf_data.getvalue(), dpi=100)
+                    if pages:
+                        preview_img = pages[0]
+                except ImportError:
+                    # If pdf2image is not available, show a message
                     self.preview_canvas.create_text(
-                        20 + panel_width - 10, 20 + header_height//2,
-                        text=panel.lens,
+                        self.preview_canvas.winfo_width() // 2,
+                        20,
+                        text="PDF preview generated. Install pdf2image for image preview.",
                         fill=self.text_color,
-                        anchor="e",
-                        font=("Arial", 9)
+                        anchor="n"
                     )
                 
-                # Image section placeholder
-                img_height = 200
-                img_y = 20 + header_height
-                img_section = self.preview_canvas.create_rectangle(
-                    20, img_y, 
-                    20 + panel_width, 
-                    img_y + img_height,
-                    fill="#444444", 
-                    outline="#555555"
-                )
-                
-                # If panel has an image, try to display it
-                if panel.image and panel.image_path and os.path.exists(panel.image_path):
-                    try:
-                        # Calculate display size while maintaining aspect ratio
-                        img = panel.image.copy()
-                        img_width, img_height_orig = img.size
-                        aspect = img_width / img_height_orig
-                        
-                        new_width = min(panel_width - 10, int(img_height * aspect))
-                        new_height = min(img_height - 10, int(new_width / aspect))
-                        
-                        img = img.resize((new_width, new_height), Image.LANCZOS)
-                        photo = ImageTk.PhotoImage(img)
-                        
-                        # Keep a reference to prevent garbage collection
-                        self.preview_image = photo
-                        
-                        # Calculate center position
-                        x_pos = 20 + panel_width//2 - new_width//2
-                        y_pos = img_y + img_height//2 - new_height//2
-                        
-                        # Create image on canvas
-                        self.preview_canvas.create_image(
-                            x_pos, y_pos, 
-                            image=photo, 
-                            anchor="nw"
-                        )
-                    except Exception as e:
-                        # If image display fails, show error text
-                        self.preview_canvas.create_text(
-                            20 + panel_width//2, 
-                            img_y + img_height//2,
-                            text="Image preview error",
-                            fill="#FF6666",
-                            font=("Arial", 10)
-                        )
+                # If we have a preview image, display it
+                if preview_img:
+                    # Resize to fit the canvas
+                    canvas_width = self.preview_canvas.winfo_width()
+                    if canvas_width <= 1:  # If canvas not yet drawn
+                        canvas_width = 400
+                    
+                    # Calculate new dimensions maintaining aspect ratio
+                    img_width, img_height = preview_img.size
+                    new_width = min(canvas_width, img_width)
+                    new_height = int(img_height * (new_width / img_width))
+                    
+                    preview_img = preview_img.resize((new_width, new_height), Image.LANCZOS)
+                    
+                    # Convert to PhotoImage
+                    photo = ImageTk.PhotoImage(preview_img)
+                    self.preview_image = photo  # Keep a reference
+                    
+                    # Create image on canvas
+                    self.preview_canvas.create_image(
+                        canvas_width // 2, 10, 
+                        image=photo, 
+                        anchor="n"
+                    )
+                    
+                    # Update scroll region
+                    self.preview_canvas.configure(scrollregion=(0, 0, new_width, new_height + 20))
                 else:
-                    # No image to display
-                    self.preview_canvas.create_text(
-                        20 + panel_width//2, 
-                        img_y + img_height//2,
-                        text="No image",
-                        fill="#AAAAAA",
-                        font=("Arial", 10)
-                    )
+                    # If we couldn't convert the PDF to an image, draw a simulated preview
+                    self._draw_simulated_preview()
+            else:
+                # If no PDF exporter, draw a simulated preview
+                self._draw_simulated_preview()
                 
-                # Technical info section (SIZE, TYPE, MOVE, EQUIP)
-                tech_y = img_y + img_height
-                tech_height = 50
-                tech_section = self.preview_canvas.create_rectangle(
-                    20, tech_y, 
-                    20 + panel_width, 
-                    tech_y + tech_height,
-                    fill="#222222", 
-                    outline="#555555"
-                )
-                
-                # Draw lines to separate columns
-                col_width = panel_width / 4
-                for i in range(1, 4):
-                    self.preview_canvas.create_line(
-                        20 + i * col_width, tech_y,
-                        20 + i * col_width, tech_y + tech_height,
-                        fill="#555555"
-                    )
-                
-                # Draw line to separate header from values
-                self.preview_canvas.create_line(
-                    20, tech_y + 20,
-                    20 + panel_width, tech_y + 20,
-                    fill="#555555"
-                )
-                
-                # Technical info headers
-                for i, label in enumerate(["SIZE", "TYPE", "MOVE", "EQUIP"]):
-                    self.preview_canvas.create_text(
-                        20 + i * col_width + col_width/2, 
-                        tech_y + 10,
-                        text=label,
-                        fill="#AAAAAA",
-                        font=("Arial", 8, "bold")
-                    )
-                
-                # Technical info values
-                values = [
-                    panel.size or "", 
-                    panel.type or "", 
-                    panel.move or "STATIC", 
-                    panel.equip or "STICKS"
-                ]
-                
-                for i, value in enumerate(values):
-                    self.preview_canvas.create_text(
-                        20 + i * col_width + col_width/2, 
-                        tech_y + 35,
-                        text=value,
-                        fill=self.text_color,
-                        font=("Arial", 8)
-                    )
-                
-                # Description section
-                desc_y = tech_y + tech_height
-                desc_height = panel_height - header_height - img_height - tech_height
-                desc_section = self.preview_canvas.create_rectangle(
-                    20, desc_y, 
-                    20 + panel_width, 
-                    20 + panel_height,
-                    fill="#222222", 
-                    outline="#555555"
-                )
-                
-                # Add description text
-                desc_text = ""
-                y_offset = 10
-                
-                # Action text
-                if panel.action:
-                    action_text = f"ACTION: {panel.action}"
-                    self.preview_canvas.create_text(
-                        30, desc_y + y_offset,
-                        text=action_text,
-                        fill=self.text_color,
-                        anchor="nw",
-                        width=panel_width - 20,
-                        font=("Arial", 8, "bold")
-                    )
-                    y_offset += 20
-                
-                # Background info
-                if panel.bgd == "Yes":
-                    bgd_text = f"BGD: Yes" + (f" - {panel.bgd_notes}" if panel.bgd_notes else "")
-                    self.preview_canvas.create_text(
-                        30, desc_y + y_offset,
-                        text=bgd_text,
-                        fill=self.text_color,
-                        anchor="nw",
-                        width=panel_width - 20,
-                        font=("Arial", 8, "bold")
-                    )
-                    y_offset += 20
-                
-                # Description 
-                if panel.description:
-                    self.preview_canvas.create_text(
-                        30, desc_y + y_offset,
-                        text=panel.description,
-                        fill=self.text_color,
-                        anchor="nw",
-                        width=panel_width - 20,
-                        font=("Arial", 8)
-                    )
-                    # Approximate height of text - increase offset based on text length
-                    text_lines = len(panel.description) // 40 + 1
-                    y_offset += text_lines * 12
-                
-                # Additional info like hair/makeup, props, vfx
-                additional_info = []
-                if panel.hair_makeup:
-                    additional_info.append(f"HAIR/MAKEUP: {panel.hair_makeup}")
-                if panel.props:
-                    additional_info.append(f"PROPS: {panel.props}")
-                if panel.vfx:
-                    additional_info.append(f"VFX: {panel.vfx}")
-                
-                if additional_info:
-                    for info in additional_info:
-                        if y_offset + 15 < desc_height:  # Ensure it fits
-                            self.preview_canvas.create_text(
-                                30, desc_y + y_offset,
-                                text=info,
-                                fill=self.text_color,
-                                anchor="nw",
-                                width=panel_width - 20,
-                                font=("Arial", 8, "bold")
-                            )
-                            y_offset += 15
-                
-                # Notes (if room)
-                if panel.notes and y_offset + 15 < desc_height:
-                    self.preview_canvas.create_text(
-                        30, desc_y + y_offset,
-                        text=f"Notes: {panel.notes}",
-                        fill="#AAAAAA",  # Light gray
-                        anchor="nw",
-                        width=panel_width - 20,
-                        font=("Arial", 8, "italic")
-                    )
         except Exception as e:
             # Show error message if preview generation fails
             self.preview_canvas.create_text(
-                self.preview_canvas.winfo_width() / 2,
-                self.preview_canvas.winfo_height() / 2,
+                self.preview_canvas.winfo_width() // 2,
+                self.preview_canvas.winfo_height() // 2,
                 text=f"Error generating preview: {str(e)}",
                 fill="#FF6666",
                 font=("Arial", 10)
             )
+    
+    def _draw_simulated_preview(self):
+        """Draw a simulated preview when PDF conversion is not available."""
+        canvas_width = self.preview_canvas.winfo_width()
+        canvas_height = self.preview_canvas.winfo_height()
+        
+        if canvas_width <= 1:  # If canvas not yet drawn
+            canvas_width = 400
+        if canvas_height <= 1:
+            canvas_height = 500
+        
+        # Title text
+        self.preview_canvas.create_text(
+            canvas_width // 2, 20,
+            text="PDF Preview - Simulated",
+            fill=self.text_color,
+            font=("Arial", 12, "bold"),
+            anchor="n"
+        )
+        
+        # Draw a grid of panel outlines (3x2)
+        # Calculate panel size
+        panel_width = (canvas_width - 40) // 3
+        panel_height = (canvas_height - 100) // 2
+        
+        # Draw up to 6 panels
+        for i, panel in enumerate(self.current_panels[:6]):
+            row = i // 3
+            col = i % 3
+            
+            # Calculate position
+            x1 = 20 + col * panel_width
+            y1 = 50 + row * panel_height
+            x2 = x1 + panel_width - 5
+            y2 = y1 + panel_height - 5
+            
+            # Draw panel outline
+            self.preview_canvas.create_rectangle(
+                x1, y1, x2, y2,
+                outline="#555555",
+                width=2
+            )
+            
+            # Draw header
+            header_height = 20
+            header_color = self._get_scene_color(panel)
+            self.preview_canvas.create_rectangle(
+                x1, y1, x2, y1 + header_height,
+                fill=header_color,
+                outline=header_color
+            )
+            
+            # Add shot number text
+            shot_text = f"Scene {panel.scene_number}{panel.shot_number}"
+            self.preview_canvas.create_text(
+                x1 + 5, y1 + header_height // 2,
+                text=shot_text,
+                fill=self.text_color,
+                font=("Arial", 8, "bold"),
+                anchor="w"
+            )
+            
+            # Draw image area outline
+            self.preview_canvas.create_rectangle(
+                x1 + 5, y1 + header_height + 5, 
+                x2 - 5, y1 + header_height + 5 + (panel_height // 3),
+                outline="#555555",
+                fill="#444444",
+                width=1
+            )
+            
+            # Add image placeholder text if no image
+            if not (panel.image and panel.image_path and os.path.exists(panel.image_path)):
+                self.preview_canvas.create_text(
+                    (x1 + x2) // 2, 
+                    y1 + header_height + 5 + (panel_height // 6),
+                    text="No Image",
+                    fill="#AAAAAA",
+                    font=("Arial", 8)
+                )
+            else:
+                # Try to show a small thumbnail of the image
+                try:
+                    img = panel.image.copy()
+                    thumb_width = panel_width - 20
+                    thumb_height = panel_height // 3 - 10
+                    img.thumbnail((thumb_width, thumb_height), Image.LANCZOS)
+                    photo = ImageTk.PhotoImage(img)
+                    
+                    # Store the photo to prevent garbage collection
+                    if not hasattr(self, 'thumbnails'):
+                        self.thumbnails = []
+                    self.thumbnails.append(photo)
+                    
+                    # Create image on canvas
+                    self.preview_canvas.create_image(
+                        (x1 + x2) // 2, 
+                        y1 + header_height + 5 + (panel_height // 6),
+                        image=photo
+                    )
+                except Exception as e:
+                    # If image display fails, show error text
+                    self.preview_canvas.create_text(
+                        (x1 + x2) // 2, 
+                        y1 + header_height + 5 + (panel_height // 6),
+                        text="Image Error",
+                        fill="#FF6666",
+                        font=("Arial", 8)
+                    )
+            
+            # Draw technical info section
+            tech_y = y1 + header_height + 5 + (panel_height // 3) + 5
+            tech_height = 30
+            self.preview_canvas.create_rectangle(
+                x1 + 5, tech_y, 
+                x2 - 5, tech_y + tech_height,
+                outline="#555555",
+                fill="#222222",
+                width=1
+            )
+            
+            # Draw text in technical info section
+            tech_headers = ["SIZE", "TYPE", "MOVE", "EQUIP"]
+            tech_values = [
+                panel.size or "", 
+                panel.type or "", 
+                panel.move or "STATIC", 
+                panel.equip or "STICKS"
+            ]
+            
+            col_width = (panel_width - 10) // 4
+            for j, (header, value) in enumerate(zip(tech_headers, tech_values)):
+                # Header
+                self.preview_canvas.create_text(
+                    x1 + 5 + j * col_width + col_width // 2, 
+                    tech_y + 8,
+                    text=header,
+                    fill="#AAAAAA",
+                    font=("Arial", 6),
+                    anchor="center"
+                )
+                
+                # Value
+                self.preview_canvas.create_text(
+                    x1 + 5 + j * col_width + col_width // 2, 
+                    tech_y + 22,
+                    text=value,
+                    fill=self.text_color,
+                    font=("Arial", 6),
+                    anchor="center"
+                )
+            
+            # Action and description area
+            action_y = tech_y + tech_height + 5
+            
+            if panel.action:
+                self.preview_canvas.create_text(
+                    x1 + 10, action_y,
+                    text=f"ACTION: {panel.action[:30]}...",
+                    fill=self.text_color,
+                    font=("Arial", 7),
+                    anchor="nw"
+                )
+                action_y += 15
+            
+            if panel.description:
+                self.preview_canvas.create_text(
+                    x1 + 10, action_y,
+                    text=panel.description[:50] + "..." if len(panel.description) > 50 else panel.description,
+                    fill=self.text_color,
+                    font=("Arial", 7),
+                    anchor="nw",
+                    width=panel_width - 20
+                )
+        
+        # Draw empty panels for remaining slots
+        for i in range(len(self.current_panels), 6):
+            row = i // 3
+            col = i % 3
+            
+            # Calculate position
+            x1 = 20 + col * panel_width
+            y1 = 50 + row * panel_height
+            x2 = x1 + panel_width - 5
+            y2 = y1 + panel_height - 5
+            
+            # Draw empty panel outline
+            self.preview_canvas.create_rectangle(
+                x1, y1, x2, y2,
+                outline="#333333",
+                width=1
+            )
+        
+        # Update scroll region
+        total_height = 50 + 2 * panel_height + 20
+        self.preview_canvas.configure(scrollregion=(0, 0, canvas_width, total_height))
     
     def _get_scene_color(self, panel):
         """Get a color for the shot label based on the scene number."""
