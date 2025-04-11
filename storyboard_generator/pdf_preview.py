@@ -19,6 +19,7 @@ class PDFPreview(ttk.Frame):
         self.bg_color = "#1E1E1E"  # Dark background
         self.text_color = "#FFFFFF"  # White text
         self.accent_color = "#2D2D30"  # Slightly lighter than background
+        self.highlight_color = "#007ACC"  # Blue highlight
         
         # Create the preview UI
         self._create_ui()
@@ -26,14 +27,15 @@ class PDFPreview(ttk.Frame):
     def _create_ui(self):
         """Create the preview UI components."""
         # Container frame with title
-        self.preview_container = ttk.LabelFrame(self, text="PDF Preview", padding=10)
+        self.preview_container = ttk.LabelFrame(self, text="PDF Preview")
         self.preview_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Canvas for displaying the preview
         self.preview_canvas = tk.Canvas(
             self.preview_container, 
             bg=self.bg_color,
-            highlightthickness=0
+            highlightthickness=0,
+            bd=0  # No border
         )
         self.preview_canvas.pack(fill=tk.BOTH, expand=True)
         
@@ -41,8 +43,8 @@ class PDFPreview(ttk.Frame):
         self.no_panel_label = ttk.Label(
             self.preview_canvas,
             text="Select a panel to preview",
-            foreground=self.text_color,
-            background=self.bg_color
+            background=self.bg_color,
+            foreground=self.text_color
         )
         self.no_panel_label.place(relx=0.5, rely=0.5, anchor="center")
     
@@ -69,13 +71,6 @@ class PDFPreview(ttk.Frame):
         try:
             # Generate a preview using the PDF exporter
             if self.pdf_exporter:
-                # Get the PDF data
-                pdf_data = self.pdf_exporter.create_preview(panel)
-                
-                # Display a placeholder for the PDF preview
-                # Note: In a production app, this would convert the PDF to an image
-                # But for simplicity, we'll just show a representation
-                
                 # Draw a panel representation
                 panel_width = self.preview_canvas.winfo_width() - 40
                 panel_height = self.preview_canvas.winfo_height() - 40
@@ -86,18 +81,20 @@ class PDFPreview(ttk.Frame):
                 if panel_height <= 0:
                     panel_height = 400
                 
-                # Draw the panel frame
+                # Draw the panel with a dark background that's visible
                 frame = self.preview_canvas.create_rectangle(
                     20, 20, 20 + panel_width, 20 + panel_height,
-                    outline="#CCCCCC", width=2
+                    outline="#555555", width=2,
+                    fill="#333333"  # Dark gray fill for visibility
                 )
                 
                 # Draw header section
                 header_height = 30
+                header_color = self._get_scene_color(panel)
                 header = self.preview_canvas.create_rectangle(
                     20, 20, 20 + panel_width, 20 + header_height,
-                    fill=self._get_scene_color(panel),
-                    outline="#CCCCCC"
+                    fill=header_color,
+                    outline=header_color  # Same color as fill to avoid white border
                 )
                 
                 # Add shot number text
@@ -105,18 +102,30 @@ class PDFPreview(ttk.Frame):
                 self.preview_canvas.create_text(
                     30, 20 + header_height//2,
                     text=shot_text,
-                    fill="white",
-                    anchor="w"
+                    fill=self.text_color,
+                    anchor="w",
+                    font=("Arial", 10, "bold")
                 )
+                
+                # Add lens info if available
+                if panel.lens:
+                    self.preview_canvas.create_text(
+                        20 + panel_width - 10, 20 + header_height//2,
+                        text=panel.lens,
+                        fill=self.text_color,
+                        anchor="e",
+                        font=("Arial", 9)
+                    )
                 
                 # Image section placeholder
                 img_height = 200
+                img_y = 20 + header_height
                 img_section = self.preview_canvas.create_rectangle(
-                    20, 20 + header_height, 
+                    20, img_y, 
                     20 + panel_width, 
-                    20 + header_height + img_height,
+                    img_y + img_height,
                     fill="#444444", 
-                    outline="#CCCCCC"
+                    outline="#555555"
                 )
                 
                 # If panel has an image, try to display it
@@ -138,7 +147,7 @@ class PDFPreview(ttk.Frame):
                         
                         # Calculate center position
                         x_pos = 20 + panel_width//2 - new_width//2
-                        y_pos = 20 + header_height + img_height//2 - new_height//2
+                        y_pos = img_y + img_height//2 - new_height//2
                         
                         # Create image on canvas
                         self.preview_canvas.create_image(
@@ -150,39 +159,56 @@ class PDFPreview(ttk.Frame):
                         # If image display fails, show error text
                         self.preview_canvas.create_text(
                             20 + panel_width//2, 
-                            20 + header_height + img_height//2,
+                            img_y + img_height//2,
                             text="Image preview error",
-                            fill="#FF6666"
+                            fill="#FF6666",
+                            font=("Arial", 10)
                         )
                 else:
                     # No image to display
                     self.preview_canvas.create_text(
                         20 + panel_width//2, 
-                        20 + header_height + img_height//2,
+                        img_y + img_height//2,
                         text="No image",
-                        fill="#AAAAAA"
+                        fill="#AAAAAA",
+                        font=("Arial", 10)
                     )
                 
                 # Technical info section (SIZE, TYPE, MOVE, EQUIP)
-                tech_y = 20 + header_height + img_height
+                tech_y = img_y + img_height
                 tech_height = 50
                 tech_section = self.preview_canvas.create_rectangle(
                     20, tech_y, 
                     20 + panel_width, 
                     tech_y + tech_height,
-                    fill="#333333", 
-                    outline="#CCCCCC"
+                    fill="#222222", 
+                    outline="#555555"
+                )
+                
+                # Draw lines to separate columns
+                col_width = panel_width / 4
+                for i in range(1, 4):
+                    self.preview_canvas.create_line(
+                        20 + i * col_width, tech_y,
+                        20 + i * col_width, tech_y + tech_height,
+                        fill="#555555"
+                    )
+                
+                # Draw line to separate header from values
+                self.preview_canvas.create_line(
+                    20, tech_y + 20,
+                    20 + panel_width, tech_y + 20,
+                    fill="#555555"
                 )
                 
                 # Technical info headers
-                col_width = panel_width / 4
                 for i, label in enumerate(["SIZE", "TYPE", "MOVE", "EQUIP"]):
                     self.preview_canvas.create_text(
                         20 + i * col_width + col_width/2, 
-                        tech_y + 15,
+                        tech_y + 10,
                         text=label,
                         fill="#AAAAAA",
-                        font=("Arial", 8)
+                        font=("Arial", 8, "bold")
                     )
                 
                 # Technical info values
@@ -198,7 +224,7 @@ class PDFPreview(ttk.Frame):
                         20 + i * col_width + col_width/2, 
                         tech_y + 35,
                         text=value,
-                        fill="white",
+                        fill=self.text_color,
                         font=("Arial", 8)
                     )
                 
@@ -210,23 +236,84 @@ class PDFPreview(ttk.Frame):
                     20 + panel_width, 
                     20 + panel_height,
                     fill="#222222", 
-                    outline="#CCCCCC"
+                    outline="#555555"
                 )
                 
                 # Add description text
                 desc_text = ""
-                if panel.action:
-                    desc_text += f"ACTION: {panel.action}\n"
-                if panel.description:
-                    desc_text += panel.description
+                y_offset = 10
                 
-                if desc_text:
+                # Action text
+                if panel.action:
+                    action_text = f"ACTION: {panel.action}"
                     self.preview_canvas.create_text(
-                        30, desc_y + 15,
-                        text=desc_text,
-                        fill="white",
+                        30, desc_y + y_offset,
+                        text=action_text,
+                        fill=self.text_color,
                         anchor="nw",
-                        width=panel_width - 20
+                        width=panel_width - 20,
+                        font=("Arial", 8, "bold")
+                    )
+                    y_offset += 20
+                
+                # Background info
+                if panel.bgd == "Yes":
+                    bgd_text = f"BGD: Yes" + (f" - {panel.bgd_notes}" if panel.bgd_notes else "")
+                    self.preview_canvas.create_text(
+                        30, desc_y + y_offset,
+                        text=bgd_text,
+                        fill=self.text_color,
+                        anchor="nw",
+                        width=panel_width - 20,
+                        font=("Arial", 8, "bold")
+                    )
+                    y_offset += 20
+                
+                # Description 
+                if panel.description:
+                    self.preview_canvas.create_text(
+                        30, desc_y + y_offset,
+                        text=panel.description,
+                        fill=self.text_color,
+                        anchor="nw",
+                        width=panel_width - 20,
+                        font=("Arial", 8)
+                    )
+                    # Approximate height of text - increase offset based on text length
+                    text_lines = len(panel.description) // 40 + 1
+                    y_offset += text_lines * 12
+                
+                # Additional info like hair/makeup, props, vfx
+                additional_info = []
+                if panel.hair_makeup:
+                    additional_info.append(f"HAIR/MAKEUP: {panel.hair_makeup}")
+                if panel.props:
+                    additional_info.append(f"PROPS: {panel.props}")
+                if panel.vfx:
+                    additional_info.append(f"VFX: {panel.vfx}")
+                
+                if additional_info:
+                    for info in additional_info:
+                        if y_offset + 15 < desc_height:  # Ensure it fits
+                            self.preview_canvas.create_text(
+                                30, desc_y + y_offset,
+                                text=info,
+                                fill=self.text_color,
+                                anchor="nw",
+                                width=panel_width - 20,
+                                font=("Arial", 8, "bold")
+                            )
+                            y_offset += 15
+                
+                # Notes (if room)
+                if panel.notes and y_offset + 15 < desc_height:
+                    self.preview_canvas.create_text(
+                        30, desc_y + y_offset,
+                        text=f"Notes: {panel.notes}",
+                        fill="#AAAAAA",  # Light gray
+                        anchor="nw",
+                        width=panel_width - 20,
+                        font=("Arial", 8, "italic")
                     )
         except Exception as e:
             # Show error message if preview generation fails
@@ -234,12 +321,13 @@ class PDFPreview(ttk.Frame):
                 self.preview_canvas.winfo_width() / 2,
                 self.preview_canvas.winfo_height() / 2,
                 text=f"Error generating preview: {str(e)}",
-                fill="#FF6666"
+                fill="#FF6666",
+                font=("Arial", 10)
             )
     
     def _get_scene_color(self, panel):
         """Get a color for the shot label based on the scene number."""
-        # Define a set of colors for different scenes
+        # Define a set of colors for different scenes - saturated and visible colors
         colors = [
             "#3F51B5",  # Blue
             "#4CAF50",  # Green
