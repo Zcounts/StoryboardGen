@@ -203,9 +203,12 @@ class PDFPreview(ttk.Frame):
         app = self.master.master
         
         # Get all panels from the app
-        if hasattr(app, 'panels') and app.panels:
+        panels_found = False
+        if hasattr(app, 'panels') and isinstance(app.panels, list) and len(app.panels) > 0:
             self.all_panels = app.panels
-            
+            panels_found = True
+        
+        if panels_found:
             # Calculate total pages (6 panels per page)
             self.total_pages = math.ceil(len(self.all_panels) / 6)
             
