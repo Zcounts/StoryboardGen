@@ -358,9 +358,11 @@ class PDFPreview(ttk.Frame):
                 # Get shot letter for color
                 shot_letter = panel.shot_number[0] if panel.shot_number else ""
                 shot_color = self.shot_colors.get(shot_letter, "#555555")
+                shot_color = self._color_to_hex(shot_color)
                 
                 # Get camera color
                 camera_color = self.camera_colors.get(panel.camera, "#555555")
+                camera_color = self._color_to_hex(camera_color)
                 
                 # Draw panel outline with shot color
                 self.preview_canvas.create_rectangle(
