@@ -35,8 +35,11 @@ def main():
     
     # Check if we're running from source or as an installed package
     if os.path.exists("main.py"):
-        # Running from source
+        # Running from source with root main.py
         script_path = "main.py"
+    elif os.path.exists(os.path.join("storyboard_generator", "main.py")):
+        # Running from source with main.py in subdirectory
+        script_path = os.path.join("storyboard_generator", "main.py")
     else:
         # Try to import as a package
         try:
