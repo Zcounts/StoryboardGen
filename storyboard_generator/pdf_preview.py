@@ -11,10 +11,11 @@ from reportlab.lib import colors  # Added this import
 class PDFPreview(ttk.Frame):
     """UI component for previewing all panels as they will appear in the PDF."""
     
-    def __init__(self, master, pdf_exporter=None):
+    def __init__(self, master, pdf_exporter=None, app=None):
         """Initialize the preview widget."""
         super().__init__(master)
         self.pdf_exporter = pdf_exporter
+        self.app = app  # Store the app reference
         self.all_panels = []
         self.current_page = 0
         self.total_pages = 0
@@ -199,13 +200,10 @@ class PDFPreview(ttk.Frame):
         # Clear canvas
         self.preview_canvas.delete("all")
         
-        # Get the app object (parent of parent of this widget)
-        app = self.master.master
-        
         # Get all panels from the app
         panels_found = False
-        if hasattr(app, 'panels') and isinstance(app.panels, list) and len(app.panels) > 0:
-            self.all_panels = app.panels
+        if self.app and hasattr(self.app, 'panels') and isinstance(self.app.panels, list) and len(self.app.panels) > 0:
+            self.all_panels = self.app.panels
             panels_found = True
         
         if panels_found:
