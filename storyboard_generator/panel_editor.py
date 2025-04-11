@@ -50,6 +50,13 @@ class PanelEditor(ttk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
+        # Add mouse wheel scrolling for the canvas
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        
+        # Add enter/leave binding to control when mousewheel scrolls this pane
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        
         # Image section
         self._create_image_section()
         
@@ -64,6 +71,20 @@ class PanelEditor(ttk.Frame):
         
         # New sections for additional fields
         self._create_additional_info_section()
+    
+    def _on_enter(self, event):
+        """Track when mouse enters this widget."""
+        # Set a flag that can be checked by the mousewheel handler
+        self.active_scroll = True
+        
+    def _on_leave(self, event):
+        """Track when mouse leaves this widget."""
+        self.active_scroll = False
+    
+    def _on_mousewheel(self, event):
+        """Handle mouse wheel scrolling when in this pane."""
+        if hasattr(self, 'active_scroll') and self.active_scroll:
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
     
     def _create_image_section(self):
         """Create the image display and upload section."""
@@ -250,55 +271,83 @@ class PanelEditor(ttk.Frame):
         additional_grid = ttk.Frame(additional_frame)
         additional_grid.pack(fill="x", padx=10, pady=10)
         
-        # Hair/Makeup
-        ttk.Label(additional_grid, text="Hair/Makeup:").grid(row=0, column=0, sticky="nw", padx=5, pady=5)
+        # Hair/Makeup with Yes/No toggle
+        ttk.Label(additional_grid, text="Hair/Makeup:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.hair_makeup_enabled_var = tk.StringVar(value="No")
+        hair_makeup_frame = ttk.Frame(additional_grid)
+        hair_makeup_frame.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        
+        ttk.Radiobutton(hair_makeup_frame, text="Yes", variable=self.hair_makeup_enabled_var, 
+                         value="Yes", command=self._toggle_hair_makeup_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(hair_makeup_frame, text="No", variable=self.hair_makeup_enabled_var, 
+                         value="No", command=self._toggle_hair_makeup_notes).pack(side=tk.LEFT, padx=5)
+        
+        # Hair/Makeup notes (initially hidden)
+        self.hair_makeup_notes_label = ttk.Label(additional_grid, text="Hair/Makeup Notes:")
         self.hair_makeup_var = tk.StringVar()
         
         # Custom styled text widget
-        hair_makeup_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        hair_makeup_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        self.hair_makeup_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, 
+                                        bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         
         # Connect text widget with StringVar
         def update_hair_makeup_var(event=None):
-            self.hair_makeup_var.set(hair_makeup_entry.get("1.0", "end-1c"))
+            self.hair_makeup_var.set(self.hair_makeup_entry.get("1.0", "end-1c"))
         
-        hair_makeup_entry.bind("<KeyRelease>", update_hair_makeup_var)
+        self.hair_makeup_entry.bind("<KeyRelease>", update_hair_makeup_var)
         
-        # Props
-        ttk.Label(additional_grid, text="Props:").grid(row=1, column=0, sticky="nw", padx=5, pady=5)
+        # Props with Yes/No toggle
+        ttk.Label(additional_grid, text="Props:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.props_enabled_var = tk.StringVar(value="No")
+        props_frame = ttk.Frame(additional_grid)
+        props_frame.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        
+        ttk.Radiobutton(props_frame, text="Yes", variable=self.props_enabled_var, 
+                        value="Yes", command=self._toggle_props_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(props_frame, text="No", variable=self.props_enabled_var, 
+                        value="No", command=self._toggle_props_notes).pack(side=tk.LEFT, padx=5)
+        
+        # Props notes (initially hidden)
+        self.props_notes_label = ttk.Label(additional_grid, text="Props Notes:")
         self.props_var = tk.StringVar()
         
         # Custom styled text widget
-        props_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        props_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        self.props_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, 
+                                  bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         
         # Connect text widget with StringVar
         def update_props_var(event=None):
-            self.props_var.set(props_entry.get("1.0", "end-1c"))
+            self.props_var.set(self.props_entry.get("1.0", "end-1c"))
         
-        props_entry.bind("<KeyRelease>", update_props_var)
+        self.props_entry.bind("<KeyRelease>", update_props_var)
         
-        # VFX
-        ttk.Label(additional_grid, text="VFX:").grid(row=2, column=0, sticky="nw", padx=5, pady=5)
+        # VFX with Yes/No toggle
+        ttk.Label(additional_grid, text="VFX:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+        self.vfx_enabled_var = tk.StringVar(value="No")
+        vfx_frame = ttk.Frame(additional_grid)
+        vfx_frame.grid(row=4, column=1, sticky="w", padx=5, pady=5)
+        
+        ttk.Radiobutton(vfx_frame, text="Yes", variable=self.vfx_enabled_var, 
+                        value="Yes", command=self._toggle_vfx_notes).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(vfx_frame, text="No", variable=self.vfx_enabled_var, 
+                        value="No", command=self._toggle_vfx_notes).pack(side=tk.LEFT, padx=5)
+        
+        # VFX notes (initially hidden)
+        self.vfx_notes_label = ttk.Label(additional_grid, text="VFX Notes:")
         self.vfx_var = tk.StringVar()
         
         # Custom styled text widget
-        vfx_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
-        vfx_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        self.vfx_entry = tk.Text(additional_grid, wrap=tk.WORD, height=3, width=40, 
+                                bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
         
         # Connect text widget with StringVar
         def update_vfx_var(event=None):
-            self.vfx_var.set(vfx_entry.get("1.0", "end-1c"))
+            self.vfx_var.set(self.vfx_entry.get("1.0", "end-1c"))
         
-        vfx_entry.bind("<KeyRelease>", update_vfx_var)
+        self.vfx_entry.bind("<KeyRelease>", update_vfx_var)
         
         # Configure grid columns
         additional_grid.columnconfigure(1, weight=1)
-        
-        # Store text widgets for later access
-        self.hair_makeup_entry = hair_makeup_entry
-        self.props_entry = props_entry
-        self.vfx_entry = vfx_entry
         
         # Save changes button
         save_button = ttk.Button(additional_frame, text="Save Changes", command=self._save_changes)
@@ -324,6 +373,50 @@ class PanelEditor(ttk.Frame):
             # Hide background notes field
             self.bgd_notes_label.grid_forget()
             self.bgd_notes_entry.grid_forget()
+            # Clear the notes
+            self.bgd_notes_var.set("")
+
+    def _toggle_hair_makeup_notes(self):
+        """Show/hide hair/makeup notes field based on selection."""
+        if self.hair_makeup_enabled_var.get() == "Yes":
+            # Show hair/makeup notes field
+            self.hair_makeup_notes_label.grid(row=1, column=0, sticky="nw", padx=5, pady=5)
+            self.hair_makeup_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        else:
+            # Hide hair/makeup notes field
+            self.hair_makeup_notes_label.grid_forget()
+            self.hair_makeup_entry.grid_forget()
+            # Clear the text
+            self.hair_makeup_entry.delete("1.0", "end")
+            self.hair_makeup_var.set("")
+
+    def _toggle_props_notes(self):
+        """Show/hide props notes field based on selection."""
+        if self.props_enabled_var.get() == "Yes":
+            # Show props notes field
+            self.props_notes_label.grid(row=3, column=0, sticky="nw", padx=5, pady=5)
+            self.props_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+        else:
+            # Hide props notes field
+            self.props_notes_label.grid_forget()
+            self.props_entry.grid_forget()
+            # Clear the text
+            self.props_entry.delete("1.0", "end")
+            self.props_var.set("")
+
+    def _toggle_vfx_notes(self):
+        """Show/hide VFX notes field based on selection."""
+        if self.vfx_enabled_var.get() == "Yes":
+            # Show VFX notes field
+            self.vfx_notes_label.grid(row=5, column=0, sticky="nw", padx=5, pady=5)
+            self.vfx_entry.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
+        else:
+            # Hide VFX notes field
+            self.vfx_notes_label.grid_forget()
+            self.vfx_entry.grid_forget()
+            # Clear the text
+            self.vfx_entry.delete("1.0", "end")
+            self.vfx_var.set("")
     
     def _add_custom_value(self, field, value):
         """Add a custom value to the dropdown if it's not already there."""
@@ -407,9 +500,25 @@ class PanelEditor(ttk.Frame):
         # Get text from Text widgets
         self.current_panel.description = self.description_entry.get("1.0", "end-1c")
         self.current_panel.notes = self.notes_entry.get("1.0", "end-1c")
-        self.current_panel.hair_makeup = self.hair_makeup_entry.get("1.0", "end-1c")
-        self.current_panel.props = self.props_entry.get("1.0", "end-1c")
-        self.current_panel.vfx = self.vfx_entry.get("1.0", "end-1c")
+        
+        # Get values for additional fields using the Yes/No toggles
+        self.current_panel.hair_makeup_enabled = self.hair_makeup_enabled_var.get()
+        if self.hair_makeup_enabled_var.get() == "Yes":
+            self.current_panel.hair_makeup = self.hair_makeup_entry.get("1.0", "end-1c")
+        else:
+            self.current_panel.hair_makeup = ""
+            
+        self.current_panel.props_enabled = self.props_enabled_var.get()
+        if self.props_enabled_var.get() == "Yes":
+            self.current_panel.props = self.props_entry.get("1.0", "end-1c")
+        else:
+            self.current_panel.props = ""
+            
+        self.current_panel.vfx_enabled = self.vfx_enabled_var.get()
+        if self.vfx_enabled_var.get() == "Yes":
+            self.current_panel.vfx = self.vfx_entry.get("1.0", "end-1c")
+        else:
+            self.current_panel.vfx = ""
         
         # Notify about the update
         if self.on_panel_update:
@@ -455,15 +564,40 @@ class PanelEditor(ttk.Frame):
         self.notes_entry.delete("1.0", "end")
         self.notes_entry.insert("1.0", panel.notes)
         
-        # Set text for new fields
+        # Handle additional fields with Yes/No toggles
+        
+        # Hair/makeup
+        if hasattr(panel, 'hair_makeup_enabled'):
+            self.hair_makeup_enabled_var.set(panel.hair_makeup_enabled)
+        else:
+            # If the panel doesn't have this attribute yet, set based on content
+            self.hair_makeup_enabled_var.set("Yes" if panel.hair_makeup else "No")
+            
         self.hair_makeup_entry.delete("1.0", "end")
         self.hair_makeup_entry.insert("1.0", panel.hair_makeup)
+        self._toggle_hair_makeup_notes()
         
+        # Props
+        if hasattr(panel, 'props_enabled'):
+            self.props_enabled_var.set(panel.props_enabled)
+        else:
+            # If the panel doesn't have this attribute yet, set based on content
+            self.props_enabled_var.set("Yes" if panel.props else "No")
+            
         self.props_entry.delete("1.0", "end")
         self.props_entry.insert("1.0", panel.props)
+        self._toggle_props_notes()
         
+        # VFX
+        if hasattr(panel, 'vfx_enabled'):
+            self.vfx_enabled_var.set(panel.vfx_enabled)
+        else:
+            # If the panel doesn't have this attribute yet, set based on content
+            self.vfx_enabled_var.set("Yes" if panel.vfx else "No")
+            
         self.vfx_entry.delete("1.0", "end")
         self.vfx_entry.insert("1.0", panel.vfx)
+        self._toggle_vfx_notes()
         
         # Update image display
         self._update_image_display()
