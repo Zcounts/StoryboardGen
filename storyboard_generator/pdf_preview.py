@@ -71,6 +71,13 @@ class PDFPreview(ttk.Frame):
         
         # Create the preview UI
         self._create_ui()
+
+    def _color_to_hex(self, color):
+        """Convert a reportlab color to a hex string for Tkinter."""
+        if hasattr(color, 'rgb'):
+            r, g, b = color.rgb()
+            return f'#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}'
+        return color  # Return as-is if it's not a reportlab color
     
     def _create_ui(self):
         """Create the preview UI components."""
