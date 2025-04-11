@@ -109,64 +109,9 @@ class PDFPreview(ttk.Frame):
             self.current_panels = [panel]
         
         try:
-            # Generate a preview using the PDF exporter
-            if self.pdf_exporter:
-                # Use the PDF exporter to create a PDF preview
-                pdf_data = self.pdf_exporter.create_preview(self.current_panels)
-                
-                # Convert the PDF to an image for display
-                # We'll use a simple message first
-                preview_img = None
-                
-                try:
-                    # If poppler/pdf2image is available, we can convert PDF to image
-                    from pdf2image import convert_from_bytes
-                    pages = convert_from_bytes(pdf_data.getvalue(), dpi=100)
-                    if pages:
-                        preview_img = pages[0]
-                except ImportError:
-                    # If pdf2image is not available, show a message
-                    self.preview_canvas.create_text(
-                        self.preview_canvas.winfo_width() // 2,
-                        20,
-                        text="PDF preview generated. Install pdf2image for image preview.",
-                        fill=self.text_color,
-                        anchor="n"
-                    )
-                
-                # If we have a preview image, display it
-                if preview_img:
-                    # Resize to fit the canvas
-                    canvas_width = self.preview_canvas.winfo_width()
-                    if canvas_width <= 1:  # If canvas not yet drawn
-                        canvas_width = 400
-                    
-                    # Calculate new dimensions maintaining aspect ratio
-                    img_width, img_height = preview_img.size
-                    new_width = min(canvas_width, img_width)
-                    new_height = int(img_height * (new_width / img_width))
-                    
-                    preview_img = preview_img.resize((new_width, new_height), Image.LANCZOS)
-                    
-                    # Convert to PhotoImage
-                    photo = ImageTk.PhotoImage(preview_img)
-                    self.preview_image = photo  # Keep a reference
-                    
-                    # Create image on canvas
-                    self.preview_canvas.create_image(
-                        canvas_width // 2, 10, 
-                        image=photo, 
-                        anchor="n"
-                    )
-                    
-                    # Update scroll region
-                    self.preview_canvas.configure(scrollregion=(0, 0, new_width, new_height + 20))
-                else:
-                    # If we couldn't convert the PDF to an image, draw a simulated preview
-                    self._draw_simulated_preview()
-            else:
-                # If no PDF exporter, draw a simulated preview
-                self._draw_simulated_preview()
+            # Modified this section to always use the simulated preview
+            # without trying to use pdf2image and poppler
+            self._draw_simulated_preview()
                 
         except Exception as e:
             # Show error message if preview generation fails
