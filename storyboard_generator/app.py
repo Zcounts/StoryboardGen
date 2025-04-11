@@ -198,7 +198,8 @@ class StoryboardApp:
         # Create PDF preview (in preview tab)
         self.pdf_preview = PDFPreview(
             self.preview_tab,
-            pdf_exporter=self.pdf_exporter
+            pdf_exporter=self.pdf_exporter,
+            app=self  # Add this line to pass the app reference directly
         )
         self.pdf_preview.pack(fill=tk.BOTH, expand=True)
         
