@@ -6,6 +6,8 @@ import os
 import json
 from PIL import Image, ImageTk
 
+from pdf_exporter import PDFExporter
+
 from panel import Panel
 from panel_editor import PanelEditor
 
@@ -323,3 +325,57 @@ class StoryboardApp:
         # Update selection
         if 0 <= self.current_panel_index < len(self.panels):
             self.panels_listbox.selection_set(self.current_panel_index)
+
+    # Update to app.py - import the PDFExporter
+
+from pdf_exporter import PDFExporter
+
+# Then update the _export_pdf method:
+
+def _export_pdf(self):
+    """Export the storyboard as PDF."""
+    if not self.panels:
+        messagebox.showerror("Error", "No panels to export. Add some panels first.")
+        return
+    
+    # Ask for export location
+    export_path = filedialog.asksaveasfilename(
+        title="Export Storyboard",
+        defaultextension=".pdf",
+        filetypes=[("PDF files", "*.pdf")]
+    )
+    
+    if not export_path:
+        return
+    
+    try:
+        # Create a PDF exporter
+        exporter = PDFExporter()
+        
+        # Export the panels
+        project_name = self.current_project or "Storyboard"
+        pdf_path = exporter.export_storyboard(self.panels, export_path, project_name)
+        
+        messagebox.showinfo("Success", f"Storyboard exported to {pdf_path}")
+        
+        # Ask if user wants to open the PDF
+        if messagebox.askyesno("Open PDF", "Would you like to open the exported PDF?"):
+            self._open_file(pdf_path)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to export PDF: {str(e)}")
+    
+def _open_file(self, path):
+    """Open a file with the default application."""
+    import os
+    import platform
+    import subprocess
+    
+    try:
+        if platform.system() == 'Darwin':  # macOS
+            subprocess.call(('open', path))
+        elif platform.system() == 'Windows':  # Windows
+            os.startfile(path)
+        else:  # linux variants
+            subprocess.call(('xdg-open', path))
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to open file: {str(e)}")
