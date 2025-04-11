@@ -1,6 +1,6 @@
 # storyboard_generator/panels_list.py
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, tk
 import os
 from PIL import Image, ImageTk
 
@@ -276,8 +276,8 @@ class PanelsList(ttk.Frame):
             panel: Panel object
         """
         # Create a frame for this panel item with proper styling
-        item_style = "Selected.TFrame" if index == self.selected_index else "TFrame"
-        item_frame = ttk.Frame(self.panels_frame, style=item_style, padding=5)
+        # Use tk.Frame instead of ttk.Frame to allow direct background configuration
+        item_frame = tk.Frame(self.panels_frame, padx=5, pady=5)
         
         # Configure background color directly
         if index == self.selected_index:
