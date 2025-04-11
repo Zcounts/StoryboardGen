@@ -1,211 +1,245 @@
-# Update to app.py
-
+# storyboard_generator/panels_list.py
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk
 import os
-import json
 from PIL import Image, ImageTk
 
-from panel import Panel
-from panel_editor import PanelEditor
-from panels_list import PanelsList
-
-class StoryboardApp:
-    """Main application class for the Storyboard Generator."""
+class PanelsList(ttk.Frame):
+    """Custom widget to display and manage a list of storyboard panels."""
     
-    def __init__(self, master):
-        """Initialize the application."""
-        self.master = master
-        self.current_project = None
-        self.project_dir = None
+    def __init__(self, master, on_select=None, on_add=None, on_delete=None, 
+                 on_move_up=None, on_move_down=None, on_duplicate=None):
+        """
+        Initialize the panels list widget.
+        
+        Args:
+            master: Parent widget
+            on_select: Callback when a panel is selected
+            on_add: Callback to add a new panel
+            on_delete: Callback to delete the selected panel
+            on_move_up: Callback to move the selected panel up
+            on_move_down: Callback to move the selected panel down
+            on_duplicate: Callback to duplicate the selected panel
+        """
+        super().__init__(master)
+        
+        # Store callbacks
+        self.on_select = on_select
+        self.on_add = on_add
+        self.on_delete = on_delete
+        self.on_move_up = on_move_up
+        self.on_move_down = on_move_down
+        self.on_duplicate = on_duplicate
+        
+        # Set theme colors
+        self.bg_color = "#1E1E1E"  # Dark background
+        self.text_color = "#FFFFFF"  # White text
+        self.accent_color = "#2D2D30"  # Slightly lighter than background
+        self.selected_color = "#007ACC"  # Blue for selection
+        
+        # Create UI elements
+        self._create_toolbar()
+        self._create_panels_listbox()
+        
+        # Track selected panel
+        self.selected_index = -1
+        
+        # Store panel data and image references
         self.panels = []
-        self.current_panel_index = -1
-        
-        # Create the main UI components
-        self._create_menu()
-        self._create_main_frame()
-        
-        # Set up initial state
-        self._new_project()
+        self.thumbnails = []
     
-    def _create_menu(self):
-        """Create the application menu bar."""
-        # (Same as before)
-        # ...
-    
-    def _create_main_frame(self):
-        """Create the main application frame."""
-        # Create main frame with left and right panes
-        self.main_frame = ttk.PanedWindow(self.master, orient=tk.HORIZONTAL)
-        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    def _create_toolbar(self):
+        """Create the toolbar with panel management buttons."""
+        toolbar = ttk.Frame(self)
+        toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
         
-        # Left frame - Panels list
-        self.left_frame = ttk.Frame(self.main_frame)
-        self.main_frame.add(self.left_frame, weight=1)
+        # Add button
+        self.add_btn = ttk.Button(toolbar, text="Add", command=self._on_add_click)
+        self.add_btn.pack(side=tk.LEFT, padx=2)
         
-        # Right frame - Panel editor
-        self.right_frame = ttk.Frame(self.main_frame)
-        self.main_frame.add(self.right_frame, weight=3)
+        # Delete button
+        self.delete_btn = ttk.Button(toolbar, text="Delete", command=self._on_delete_click)
+        self.delete_btn.pack(side=tk.LEFT, padx=2)
         
-        # Set up panels list
-        self._setup_panels_list()
+        # Duplicate button
+        self.duplicate_btn = ttk.Button(toolbar, text="Duplicate", command=self._on_duplicate_click)
+        self.duplicate_btn.pack(side=tk.LEFT, padx=2)
         
-        # Set up panel editor
-        self._setup_panel_editor()
-    
-    def _setup_panels_list(self):
-        """Set up the panels list in the left frame."""
-        # Panel list label
-        ttk.Label(self.left_frame, text="Storyboard Panels").pack(pady=(0, 5), anchor=tk.W)
+        # Up button
+        self.up_btn = ttk.Button(toolbar, text="Up", command=self._on_up_click)
+        self.up_btn.pack(side=tk.LEFT, padx=2)
         
-        # Create the custom panels list
-        self.panels_list = PanelsList(self.left_frame, on_select=self._on_panel_select)
-        self.panels_list.pack(fill=tk.BOTH, expand=True)
+        # Down button
+        self.down_btn = ttk.Button(toolbar, text="Down", command=self._on_down_click)
+        self.down_btn.pack(side=tk.LEFT, padx=2)
+    
+    def _create_panels_listbox(self):
+        """Create the listbox to display panels."""
+        # Create a frame with a canvas and scrollbar for the panel list
+        self.list_frame = ttk.Frame(self)
+        self.list_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Store references to the panel management methods in the PanelsList
-        self.panels_list.on_select = self
-    
-    def _setup_panel_editor(self):
-        """Set up the panel editor in the right frame."""
-        # Panel editor title
-        ttk.Label(self.right_frame, text="Panel Editor").pack(pady=(0, 10), anchor=tk.W)
+        # Add a scrollbar
+        scrollbar = ttk.Scrollbar(self.list_frame, orient=tk.VERTICAL)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Create the panel editor
-        self.panel_editor = PanelEditor(self.right_frame, on_panel_update=self._on_panel_update)
-        self.panel_editor.pack(fill=tk.BOTH, expand=True)
+        # Create a canvas that will hold the panels
+        self.canvas = tk.Canvas(self.list_frame, bg=self.bg_color, 
+                               highlightthickness=0, yscrollcommand=scrollbar.set)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        # Initially disable the panel editor
-        self._update_panel_editor()
-    
-    def _on_panel_update(self, panel):
-        """Handle panel update event from the editor."""
-        if panel and panel in self.panels:
-            # Update the panels list to reflect changes
-            self._update_panels_list()
-    
-    def _update_panel_editor(self):
-        """Update the panel editor with the currently selected panel."""
-        if 0 <= self.current_panel_index < len(self.panels):
-            # Load the selected panel into the editor
-            self.panel_editor.load_panel(self.panels[self.current_panel_index])
-        else:
-            # No panel selected, clear the editor
-            self.panel_editor.load_panel(None)
-    
-    def _new_project(self):
-        """Create a new project."""
-        self.current_project = None
-        self.project_dir = None
-        self.panels = []
-        self.current_panel_index = -1
-        self._update_panels_list()
-        self._update_panel_editor()
-    
-    def _open_project(self):
-        """Open an existing project."""
-        # (implementation remains the same)
-        # ...
-    
-    def _save_project(self):
-        """Save the current project."""
-        # (implementation remains the same)
-        # ...
-    
-    def _export_pdf(self):
-        """Export the storyboard as PDF."""
-        # (implementation remains the same)
-        # ...
-    
-    def add_panel(self):
-        """Add a new panel to the storyboard."""
-        # Create a new panel
-        panel = Panel()
+        # Configure the scrollbar to scroll the canvas
+        scrollbar.config(command=self.canvas.yview)
         
-        # If we have existing panels, set default values from the last panel
-        if self.panels:
-            last_panel = self.panels[-1]
-            panel.scene_number = last_panel.scene_number
-            panel.camera = last_panel.camera
+        # Create a frame inside the canvas to hold panel items
+        self.panels_frame = ttk.Frame(self.canvas, style="TFrame")
+        self.canvas_window = self.canvas.create_window(
+            (0, 0), window=self.panels_frame, anchor="nw", tags="self.panels_frame"
+        )
         
-        # Add to the list
-        self.panels.append(panel)
+        # Update scroll region when frame size changes
+        self.panels_frame.bind("<Configure>", self._on_frame_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
         
-        # Update UI
-        self._update_panels_list()
+        # Bind mouse wheel scrolling
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+    
+    def _on_frame_configure(self, event):
+        """Update the scroll region when the frame size changes."""
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+    
+    def _on_canvas_configure(self, event):
+        """Resize the inner frame when the canvas changes size."""
+        width = event.width
+        self.canvas.itemconfig(self.canvas_window, width=width)
+    
+    def _on_mousewheel(self, event):
+        """Handle mouse wheel scrolling."""
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    
+    def _on_add_click(self):
+        """Handle click on the Add button."""
+        if self.on_add:
+            self.on_add()
+    
+    def _on_delete_click(self):
+        """Handle click on the Delete button."""
+        if self.on_delete and self.selected_index >= 0:
+            self.on_delete()
+    
+    def _on_duplicate_click(self):
+        """Handle click on the Duplicate button."""
+        if self.on_duplicate and self.selected_index >= 0:
+            self.on_duplicate()
+    
+    def _on_up_click(self):
+        """Handle click on the Up button."""
+        if self.on_move_up and self.selected_index > 0:
+            self.on_move_up()
+    
+    def _on_down_click(self):
+        """Handle click on the Down button."""
+        if self.on_move_down and self.selected_index >= 0:
+            self.on_move_down()
+    
+    def _on_panel_click(self, index):
+        """Handle click on a panel item."""
+        self.select_panel(index)
+        if self.on_select:
+            self.on_select(index)
+    
+    def select_panel(self, index):
+        """
+        Select a panel by index.
         
-        # Select the new panel
-        self.current_panel_index = len(self.panels) - 1
-        self.panels_list.select_panel(self.current_panel_index)
-        
-        # Update editor
-        self._update_panel_editor()
-    
-    def delete_panel(self):
-        """Delete the selected panel."""
-        if 0 <= self.current_panel_index < len(self.panels):
-            # Remove the panel
-            del self.panels[self.current_panel_index]
-            
-            # Update UI
-            self._update_panels_list()
-            
-            # Adjust the selection
-            if self.panels:
-                if self.current_panel_index >= len(self.panels):
-                    self.current_panel_index = len(self.panels) - 1
-                self.panels_list.select_panel(self.current_panel_index)
-            else:
-                self.current_panel_index = -1
-            
-            # Update editor
-            self._update_panel_editor()
-    
-    def move_panel_up(self):
-        """Move the selected panel up in the order."""
-        if 0 < self.current_panel_index < len(self.panels):
-            # Swap with the previous panel
-            self.panels[self.current_panel_index], self.panels[self.current_panel_index-1] = \
-                self.panels[self.current_panel_index-1], self.panels[self.current_panel_index]
-            
-            # Update UI
-            self._update_panels_list()
-            
-            # Update selection
-            self.current_panel_index -= 1
-            self.panels_list.select_panel(self.current_panel_index)
-            
-            # Update panel orders
-            for i, panel in enumerate(self.panels):
-                panel.order = i
-    
-    def move_panel_down(self):
-        """Move the selected panel down in the order."""
-        if 0 <= self.current_panel_index < len(self.panels) - 1:
-            # Swap with the next panel
-            self.panels[self.current_panel_index], self.panels[self.current_panel_index+1] = \
-                self.panels[self.current_panel_index+1], self.panels[self.current_panel_index]
-            
-            # Update UI
-            self._update_panels_list()
-            
-            # Update selection
-            self.current_panel_index += 1
-            self.panels_list.select_panel(self.current_panel_index)
-            
-            # Update panel orders
-            for i, panel in enumerate(self.panels):
-                panel.order = i
-    
-    def _on_panel_select(self, index):
-        """Handle panel selection event."""
+        Args:
+            index: Index of the panel to select
+        """
         if 0 <= index < len(self.panels):
-            # Update the current panel index
-            self.current_panel_index = index
+            # Update the selected index
+            self.selected_index = index
             
-            # Update the panel editor
-            self._update_panel_editor()
+            # Update the visual selection in the UI
+            for i, frame in enumerate(self.panels_frame.winfo_children()):
+                if i == index:
+                    frame.configure(style="Selected.TFrame")
+                else:
+                    frame.configure(style="TFrame")
     
-    def _update_panels_list(self):
-        """Update the panels list in the UI."""
-        # Update the custom panels list
-        self.panels_list.update_panels(self.panels)
+    def update_panels(self, panels):
+        """
+        Update the list with new panels.
+        
+        Args:
+            panels: List of Panel objects
+        """
+        # Store the panel data
+        self.panels = panels
+        
+        # Keep track of thumbnails to prevent garbage collection
+        self.thumbnails = []
+        
+        # Clear existing panel items
+        for widget in self.panels_frame.winfo_children():
+            widget.destroy()
+        
+        # Add panel items for each panel
+        for i, panel in enumerate(panels):
+            self._add_panel_item(i, panel)
+        
+        # Update the selection
+        if self.selected_index >= len(panels):
+            self.selected_index = len(panels) - 1 if panels else -1
+        
+        if self.selected_index >= 0:
+            self.select_panel(self.selected_index)
+    
+    def _add_panel_item(self, index, panel):
+        """
+        Add a panel item to the list.
+        
+        Args:
+            index: Index of the panel
+            panel: Panel object
+        """
+        # Create a frame for this panel item
+        item_style = "Selected.TFrame" if index == self.selected_index else "TFrame"
+        item_frame = ttk.Frame(self.panels_frame, style=item_style, padding=5)
+        item_frame.pack(fill=tk.X, padx=5, pady=2)
+        
+        # Make the frame selectable by clicking
+        item_frame.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i))
+        
+        # Create a horizontal layout
+        info_frame = ttk.Frame(item_frame, style="TFrame")
+        info_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Add shot number label
+        shot_label = ttk.Label(
+            info_frame, 
+            text=f"Scene {panel.scene_number}{panel.shot_number}",
+            style="TLabel",
+            font=("Arial", 10, "bold")
+        )
+        shot_label.pack(anchor=tk.W)
+        
+        # Add description preview if available
+        if panel.description:
+            # Limit to first 50 chars
+            preview = panel.description[:50] + "..." if len(panel.description) > 50 else panel.description
+            desc_label = ttk.Label(info_frame, text=preview, style="TLabel")
+            desc_label.pack(anchor=tk.W)
+        
+        # Add camera info
+        camera_label = ttk.Label(info_frame, text=f"Camera: {panel.camera}", style="TLabel")
+        camera_label.pack(anchor=tk.W)
+        
+        # Add thumbnail if available
+        thumbnail = panel.get_thumbnail()
+        if thumbnail:
+            self.thumbnails.append(thumbnail)  # Keep reference
+            thumb_label = ttk.Label(item_frame, image=thumbnail, style="TLabel")
+            thumb_label.pack(side=tk.RIGHT, padx=5)
+            
+            # Also make thumbnail clickable
+            thumb_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i))
