@@ -6,6 +6,7 @@ from PIL import Image, ImageTk
 import io
 import sys
 import math
+from reportlab.lib import colors  # Added this import
 
 class PDFPreview(ttk.Frame):
     """UI component for previewing all panels as they will appear in the PDF."""
