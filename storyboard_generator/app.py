@@ -6,10 +6,10 @@ import os
 import json
 from PIL import Image, ImageTk
 
-from pdf_exporter import PDFExporter
-
-from panel import Panel
-from panel_editor import PanelEditor
+# Use relative imports for modules in the same package
+from .pdf_exporter import PDFExporter
+from .panel import Panel
+from .panel_editor import PanelEditor
 
 class StoryboardApp:
     """Main application class for the Storyboard Generator."""
