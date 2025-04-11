@@ -43,6 +43,20 @@ class PDFExporter:
             "J": colors.pink,
             "K": colors.teal,
             "L": colors.lavender,
+            "M": colors.lime,          # bright, stands out from earlier greens
+            "N": colors.lightblue,     # a softer blue than A=blue
+            "O": colors.plum,          # a warm purple-pink
+            "P": colors.rosybrown,     # muted earthy tone
+            "Q": colors.chocolate,     # rich brownish-orange
+            "R": colors.crimson,       # strong, deep red
+            "S": colors.lightgreen,    # airy green distinct from B=darkgreen
+            "T": colors.tomato,        # vivid orangey-red
+            "U": colors.magenta,       # bold, bright magenta
+            "V": colors.indigo,        # deeper variant of purple/blue
+            "W": colors.darkkhaki,     # muted yellowish-brown
+            "X": colors.lightsalmon,   # soft orange-pink
+            "Y": colors.yellow,        # a pure, classic yellow
+            "Z": colors.orchid,        # pink-purple hue
         }
     
     def _setup_styles(self):
