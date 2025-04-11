@@ -33,19 +33,31 @@ def main():
     """Main entry point for launching the application."""
     print("Starting Storyboard Generator...")
     
-    # Add the parent directory to Python's path so it can find the package
-    project_dir = os.path.dirname(os.path.abspath(__file__))
-    sys.path.insert(0, project_dir)
-    
     # Check dependencies
     if not check_dependencies():
         if not install_dependencies():
             sys.exit(1)
     
-    # Run the application using runner.py
-    runner_path = os.path.join(project_dir, "runner.py")
+    # Run the application directly
     try:
-        subprocess.check_call([sys.executable, runner_path])
+        # Set up the environment to ensure proper imports
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        env = os.environ.copy()
+        
+        # Add the project directory to PYTHONPATH
+        if "PYTHONPATH" in env:
+            env["PYTHONPATH"] = f"{project_dir}{os.pathsep}{env['PYTHONPATH']}"
+        else:
+            env["PYTHONPATH"] = project_dir
+        
+        # Run the main script directly
+        subprocess.check_call(
+            [sys.executable, os.path.join(project_dir, "storyboard_generator", "main.py")],
+            env=env
+        )
     except subprocess.CalledProcessError:
         print("Application exited with an error.")
         sys.exit(1)
+
+if __name__ == "__main__":
+    main()
