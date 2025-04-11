@@ -1,9 +1,9 @@
 # storyboard_generator/pdf_exporter.py
 import os
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm, mm, inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -44,7 +44,7 @@ class PDFExporter:
         self.shot_style = ParagraphStyle(
             name='ShotStyle',
             parent=self.styles['Normal'],
-            fontSize=10,
+            fontSize=9,
             textColor=colors.white,
             alignment=TA_LEFT
         )
@@ -52,29 +52,29 @@ class PDFExporter:
         self.label_style = ParagraphStyle(
             name='LabelStyle',
             parent=self.styles['Normal'],
-            fontSize=8,
+            fontSize=7,
             alignment=TA_CENTER
         )
         
         self.cell_style = ParagraphStyle(
             name='CellStyle',
             parent=self.styles['Normal'],
-            fontSize=8,
+            fontSize=7,
             alignment=TA_CENTER
         )
         
         self.action_style = ParagraphStyle(
             name='ActionStyle',
             parent=self.styles['Normal'],
-            fontSize=8,
+            fontSize=7,
             alignment=TA_LEFT,
-            leading=10
+            leading=8
         )
         
         self.notes_style = ParagraphStyle(
             name='NotesStyle',
             parent=self.styles['Normal'],
-            fontSize=8,
+            fontSize=7,
             alignment=TA_LEFT,
             textColor=colors.darkgrey
         )
@@ -82,7 +82,7 @@ class PDFExporter:
         self.section_header_style = ParagraphStyle(
             name='SectionHeaderStyle',
             parent=self.styles['Heading3'],
-            fontSize=10,
+            fontSize=9,
             alignment=TA_LEFT,
             textColor=colors.black,
             spaceAfter=2
@@ -91,9 +91,9 @@ class PDFExporter:
         self.additional_info_style = ParagraphStyle(
             name='AdditionalInfoStyle',
             parent=self.styles['Normal'],
-            fontSize=8,
+            fontSize=7,
             alignment=TA_LEFT,
-            leading=10
+            leading=8
         )
     
     def export_storyboard(self, panels, output_path, project_name="Storyboard"):
@@ -105,10 +105,10 @@ class PDFExporter:
             output_path: Path where to save the PDF file
             project_name: Name of the project for the title
         """
-        # Create PDF document
+        # Create PDF document with portrait orientation
         doc = SimpleDocTemplate(
             output_path,
-            pagesize=landscape(A4),
+            pagesize=A4,  # Portrait orientation
             rightMargin=1*cm,
             leftMargin=1*cm,
             topMargin=1*cm,
@@ -146,44 +146,50 @@ class PDFExporter:
             # Get panels for this scene
             scene_panels = scene_groups[scene_number]
             
-            # Process panels in groups of 3 (for 3 panels per row)
-            panel_groups = [scene_panels[i:i+3] for i in range(0, len(scene_panels), 3)]
+            # Process panels in groups of 6 (for 3 columns x 2 rows per page)
+            # This is a different approach than before where we had 3 panels per row
+            panel_groups = [scene_panels[i:i+6] for i in range(0, len(scene_panels), 6)]
             
             # Process each group
             for group in panel_groups:
-                # Create panel elements for this row
+                # Create panel elements for this page
                 panel_elements = []
                 
                 for panel in group:
                     panel_element = self._create_panel_element(panel)
                     panel_elements.append(panel_element)
                 
-                # Ensure we have 3 panels in the row by adding empty panels if needed
-                while len(panel_elements) < 3:
+                # Ensure we have 6 panels in the grid by adding empty panels if needed
+                while len(panel_elements) < 6:
                     panel_elements.append(self._create_empty_panel())
                 
-                # Create a table for this row of panels
-                panel_row = Table(
-                    [panel_elements],
-                    colWidths=[8.5*cm, 8.5*cm, 8.5*cm],
-                    rowHeights=[12*cm]
+                # Arrange panels in a 3x2 grid (3 columns, 2 rows)
+                row1 = panel_elements[:3]
+                row2 = panel_elements[3:6]
+                
+                # Create a table for the entire grid
+                grid = Table(
+                    [row1, row2],
+                    colWidths=[6.0*cm, 6.0*cm, 6.0*cm],
+                    rowHeights=[14*cm, 14*cm]
                 )
                 
-                # Add styling to the row
-                panel_row.setStyle(TableStyle([
+                # Add styling to the grid
+                grid.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 3),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-                    ('TOPPADDING', (0, 0), (-1, -1), 3),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+                    ('TOPPADDING', (0, 0), (-1, -1), 2),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
                 ]))
                 
-                # Add the row to the document
-                elements.append(panel_row)
-                elements.append(Spacer(1, 5*mm))
+                # Add the grid to the document
+                elements.append(grid)
+                elements.append(PageBreak())  # Add a page break after each grid
             
-            # Add space between scenes
-            elements.append(Spacer(1, 5*mm))
+        # Remove the last page break if there is one
+        if isinstance(elements[-1], PageBreak):
+            elements.pop()
         
         # Build the PDF
         doc.build(elements)
@@ -203,7 +209,7 @@ class PDFExporter:
                 Paragraph(panel.lens, ParagraphStyle(
                     name='LensStyle',
                     parent=self.styles['Normal'],
-                    fontSize=9,
+                    fontSize=7,
                     alignment=TA_RIGHT
                 ))
             ]
@@ -211,8 +217,8 @@ class PDFExporter:
         
         header_table = Table(
             header_data,
-            colWidths=[4.25*cm, 4.25*cm],
-            rowHeights=[0.5*cm]
+            colWidths=[3.0*cm, 3.0*cm],
+            rowHeights=[0.4*cm]
         )
         
         # Style the header table
@@ -245,8 +251,8 @@ class PDFExporter:
         
         tech_table = Table(
             tech_data,
-            colWidths=[2.125*cm, 2.125*cm, 2.125*cm, 2.125*cm],
-            rowHeights=[0.5*cm, 0.6*cm]
+            colWidths=[1.5*cm, 1.5*cm, 1.5*cm, 1.5*cm],
+            rowHeights=[0.4*cm, 0.5*cm]
         )
         
         # Style the tech table
@@ -255,7 +261,7 @@ class PDFExporter:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
         ]))
         
         panel_elements.append(tech_table)
@@ -276,20 +282,26 @@ class PDFExporter:
             panel_elements.append(Paragraph(panel.description, self.action_style))
         
         # Additional information sections
-        if panel.hair_makeup or panel.props or panel.vfx:
-            additional_text = ""
-            
-            if panel.hair_makeup:
-                additional_text += f"<b>HAIR/MAKEUP:</b> {panel.hair_makeup}<br/>"
-            
-            if panel.props:
-                additional_text += f"<b>PROPS:</b> {panel.props}<br/>"
-            
-            if panel.vfx:
-                additional_text += f"<b>VFX:</b> {panel.vfx}<br/>"
-            
-            if additional_text:
-                panel_elements.append(Paragraph(additional_text, self.additional_info_style))
+        additional_text = ""
+        
+        # Handle the yes/no toggle fields for additional info
+        if hasattr(panel, 'hair_makeup_enabled') and panel.hair_makeup_enabled == "Yes" and panel.hair_makeup:
+            additional_text += f"<b>HAIR/MAKEUP:</b> {panel.hair_makeup}<br/>"
+        elif panel.hair_makeup:  # Backward compatibility
+            additional_text += f"<b>HAIR/MAKEUP:</b> {panel.hair_makeup}<br/>"
+        
+        if hasattr(panel, 'props_enabled') and panel.props_enabled == "Yes" and panel.props:
+            additional_text += f"<b>PROPS:</b> {panel.props}<br/>"
+        elif panel.props:  # Backward compatibility
+            additional_text += f"<b>PROPS:</b> {panel.props}<br/>"
+        
+        if hasattr(panel, 'vfx_enabled') and panel.vfx_enabled == "Yes" and panel.vfx:
+            additional_text += f"<b>VFX:</b> {panel.vfx}<br/>"
+        elif panel.vfx:  # Backward compatibility
+            additional_text += f"<b>VFX:</b> {panel.vfx}<br/>"
+        
+        if additional_text:
+            panel_elements.append(Paragraph(additional_text, self.additional_info_style))
         
         # Notes
         if panel.notes:
@@ -298,7 +310,7 @@ class PDFExporter:
         # Combine all elements into a single panel table
         panel_table = Table(
             [[element] for element in panel_elements],
-            colWidths=[8.5*cm],
+            colWidths=[6.0*cm],
         )
         
         # Style the panel table with a border
@@ -316,7 +328,7 @@ class PDFExporter:
         """Create an empty panel placeholder."""
         panel_table = Table(
             [[""]],
-            colWidths=[8.5*cm],
+            colWidths=[6.0*cm],
             rowHeights=[12*cm]
         )
         
@@ -333,8 +345,8 @@ class PDFExporter:
             # Create an empty box if no image
             img_table = Table(
                 [["No Image"]],
-                colWidths=[8.5*cm],
-                rowHeights=[6*cm]
+                colWidths=[6.0*cm],
+                rowHeights=[4*cm]
             )
             
             img_table.setStyle(TableStyle([
@@ -355,12 +367,12 @@ class PDFExporter:
             # Calculate aspect ratio
             aspect = img_width / img_height
             
-            # Target width is 8.5 cm (about 240 points) minus some padding
-            target_width = 8.3 * cm
+            # Target width is 6.0 cm (about 170 points) minus some padding
+            target_width = 5.8 * cm
             target_height = target_width / aspect
             
             # Ensure the height doesn't get too tall
-            max_height = 6 * cm
+            max_height = 4 * cm
             if target_height > max_height:
                 target_height = max_height
                 target_width = target_height * aspect
@@ -371,8 +383,8 @@ class PDFExporter:
             # Create a table to hold the image and center it
             img_table = Table(
                 [[img_obj]],
-                colWidths=[8.5*cm],
-                rowHeights=[6*cm]
+                colWidths=[6.0*cm],
+                rowHeights=[4*cm]
             )
             
             img_table.setStyle(TableStyle([
@@ -388,8 +400,8 @@ class PDFExporter:
             # Return an error placeholder
             img_table = Table(
                 [["Image Error"]],
-                colWidths=[8.5*cm],
-                rowHeights=[6*cm]
+                colWidths=[6.0*cm],
+                rowHeights=[4*cm]
             )
             
             img_table.setStyle(TableStyle([
@@ -426,43 +438,72 @@ class PDFExporter:
             
         return colors_list[color_index]
     
-    def create_preview(self, panel):
+    def create_preview(self, panels):
         """
-        Create a preview of a single panel for display in the UI.
+        Create a preview of a page of panels for display in the UI.
         
         Args:
-            panel: The Panel object to preview
+            panels: List of Panel objects to preview
             
         Returns:
-            PIL.Image: An image of the panel preview
+            BytesIO: PDF data in memory that can be converted to an image
         """
-        # This is a simplified version that would need to be implemented in a real application
-        # For now, return a placeholder method that would be used for generating a preview
-        from io import BytesIO
-        from reportlab.lib.pagesizes import letter
-        from reportlab.platypus import SimpleDocTemplate
-        
         # Create a PDF in memory
         buffer = BytesIO()
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=(10*cm, 15*cm),
+            pagesize=A4,
             rightMargin=0.5*cm,
             leftMargin=0.5*cm,
             topMargin=0.5*cm,
             bottomMargin=0.5*cm
         )
         
-        # Create the panel element
+        # Create the panel elements
         elements = []
-        panel_element = self._create_panel_element(panel)
-        elements.append(panel_element)
+        
+        # Title
+        elements.append(Paragraph("<b>PDF Preview</b>", self.title_style))
+        elements.append(Spacer(1, 3*mm))
+        
+        # Create panel elements for this page (up to 6 - 3x2 grid)
+        preview_panels = panels[:6]
+        panel_elements = []
+        
+        for panel in preview_panels:
+            panel_element = self._create_panel_element(panel)
+            panel_elements.append(panel_element)
+        
+        # Ensure we have 6 panels in the grid by adding empty panels if needed
+        while len(panel_elements) < 6:
+            panel_elements.append(self._create_empty_panel())
+        
+        # Arrange panels in a 3x2 grid (3 columns, 2 rows)
+        row1 = panel_elements[:3]
+        row2 = panel_elements[3:6]
+        
+        # Create a table for the entire grid
+        grid = Table(
+            [row1, row2],
+            colWidths=[6.0*cm, 6.0*cm, 6.0*cm],
+            rowHeights=[12*cm, 12*cm]
+        )
+        
+        # Add styling to the grid
+        grid.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        
+        # Add the grid to the document
+        elements.append(grid)
         
         # Build the PDF
         doc.build(elements)
         
-        # Convert PDF to image (simplified version)
-        # In a real implementation, you would use a PDF library to render the PDF to an image
-        # For now, just return a placeholder message
+        # Reset buffer position for reading
         buffer.seek(0)
         return buffer
