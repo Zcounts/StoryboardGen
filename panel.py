@@ -196,3 +196,62 @@ class Panel:
             panel._load_image()
         
         return panel
+
+    def get_thumbnail(self):
+    """
+    Get a thumbnail of the panel image for display in the panels list.
+    
+    Returns:
+        ImageTk.PhotoImage: The thumbnail image or None if no image
+    """
+    if not self.image:
+        return None
+    
+    # Create a thumbnail if we don't have one already
+    if not self.thumbnail:
+        thumbnail_size = (100, 75)  # Adjust size as needed
+        self.thumbnail = self.image.copy()
+        self.thumbnail.thumbnail(thumbnail_size)
+    
+    # Convert to PhotoImage for Tkinter
+    return ImageTk.PhotoImage(self.thumbnail)
+
+def set_image(self, image_path, project_dir=None):
+    """
+    Set the image for this panel.
+    
+    Args:
+        image_path (str): Path to the image file
+        project_dir (str, optional): Project directory for relative path storage
+    """
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"Image file not found: {image_path}")
+    
+    # Store the original path
+    self.original_image_path = image_path
+    
+    # If we have a project directory, copy the image to it and store the relative path
+    if project_dir:
+        # Create images directory if it doesn't exist
+        images_dir = os.path.join(project_dir, "images")
+        os.makedirs(images_dir, exist_ok=True)
+        
+        # Generate a filename based on the panel ID
+        filename = f"{self.id}_{os.path.basename(image_path)}"
+        dest_path = os.path.join(images_dir, filename)
+        
+        # Copy the image file
+        import shutil
+        shutil.copy2(image_path, dest_path)
+        
+        # Store the relative path
+        self.image_path = os.path.join("images", filename)
+    else:
+        # Store the absolute path if no project directory
+        self.image_path = image_path
+    
+    # Load the image
+    self._load_image()
+    
+    # Clear any existing thumbnail so it will be regenerated
+    self.thumbnail = None
