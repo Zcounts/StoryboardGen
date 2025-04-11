@@ -25,6 +25,7 @@ class StoryboardApp:
         self.bg_color = "#1E1E1E"  # Dark background
         self.text_color = "#FFFFFF"  # White text
         self.accent_color = "#2D2D30"  # Slightly lighter than background
+        self.highlight_color = "#007ACC"  # Blue highlight color
         
         # Configure window appearance
         self.root.configure(background=self.bg_color)
@@ -58,12 +59,17 @@ class StoryboardApp:
         # Configure dark theme styles
         style.configure("TFrame", background=self.bg_color)
         style.configure("TLabel", background=self.bg_color, foreground=self.text_color)
-        style.configure("TButton", background=self.accent_color, foreground=self.text_color)
+        style.configure("TButton", background=self.accent_color, foreground=self.text_color, padding=[10, 5])
+        style.configure("Accent.TButton", background=self.highlight_color, foreground=self.text_color, padding=[10, 5])
+        style.map("Accent.TButton",
+            background=[("active", "#0078D7")],
+            foreground=[("active", "#FFFFFF")]
+        )
         style.configure("TEntry", fieldbackground=self.accent_color, foreground=self.text_color)
         style.configure("TNotebook", background=self.bg_color)
         style.configure("TNotebook.Tab", background=self.accent_color, foreground=self.text_color, padding=[10, 2])
         
-        # Fix dropdown menu and combobox styles - this helps with the technical info section visibility
+        # Fix dropdown menu and combobox styles
         style.configure("TCombobox", fieldbackground=self.accent_color, foreground=self.text_color, background=self.accent_color)
         style.map("TCombobox", 
             fieldbackground=[("readonly", self.accent_color)],
@@ -73,13 +79,13 @@ class StoryboardApp:
         # Fix canvas styles
         style.configure("Canvas", background=self.bg_color)
         
-        # Fix labelframe styles - these have been causing white borders
+        # Fix labelframe styles
         style.configure("TLabelframe", background=self.bg_color)
         style.configure("TLabelframe.Label", background=self.bg_color, foreground=self.text_color)
         
         # Fix selection styles
         style.map("TNotebook.Tab",
-            background=[("selected", self.accent_color)],
+            background=[("selected", self.highlight_color)],
             foreground=[("selected", self.text_color)]
         )
         
@@ -90,21 +96,22 @@ class StoryboardApp:
             foreground=[("active", self.text_color)]
         )
         
-        # Fix entry readonly style which was causing contrast issues
+        # Fix entry readonly style
         style.map("TEntry",
             fieldbackground=[("readonly", "#2D2D30")],
             foreground=[("readonly", self.text_color)]
         )
         
         # Selected panel style
-        style.configure("Selected.TFrame", background="#2A4D69")  # Blue-ish selected color
-        style.configure("Selected.TLabel", background="#2A4D69", foreground=self.text_color)  # Added this
+        style.configure("Selected.TFrame", background=self.highlight_color)
+        style.configure("Selected.TLabel", background=self.highlight_color, foreground=self.text_color)
         
         # Hover panel style
-        style.configure("Hover.TFrame", background="#3E3E42")  # Darker gray for hover
-        style.configure("Hover.TLabel", background="#3E3E42", foreground=self.text_color)  # Added this
+        style.configure("Hover.TFrame", background="#3E3E42")
+        style.configure("Hover.TLabel", background="#3E3E42", foreground=self.text_color)
         
-        # Note: Removed the PanedWindow style configuration as it was causing the error
+        # Custom panedwindow style to make dividers more visible
+        style.configure("TPanedwindow", background="#3E3E42")
     
     def _create_menu(self):
         """Create the application menu."""
@@ -112,10 +119,10 @@ class StoryboardApp:
         
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0, bg=self.accent_color, fg=self.text_color)
-        file_menu.add_command(label="New Project", command=self._new_project)
-        file_menu.add_command(label="Open Project", command=self._open_project)
-        file_menu.add_command(label="Save Project", command=self._save_project)
-        file_menu.add_command(label="Save Project As", command=self._save_project_as)
+        file_menu.add_command(label="New Project", command=self._new_project, accelerator="Ctrl+N")
+        file_menu.add_command(label="Open Project", command=self._open_project, accelerator="Ctrl+O")
+        file_menu.add_command(label="Save Project", command=self._save_project, accelerator="Ctrl+S")
+        file_menu.add_command(label="Save Project As", command=self._save_project_as, accelerator="Ctrl+Shift+S")
         file_menu.add_separator()
         file_menu.add_command(label="Export to PDF", command=self._export_to_pdf)
         file_menu.add_command(label="Export Shot List to PDF", command=self._export_shot_list_to_pdf)
@@ -123,15 +130,37 @@ class StoryboardApp:
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self._exit_app)
         
+        # Edit menu
+        edit_menu = tk.Menu(menubar, tearoff=0, bg=self.accent_color, fg=self.text_color)
+        edit_menu.add_command(label="Add Panel", command=self._add_panel, accelerator="Ctrl+A")
+        edit_menu.add_command(label="Delete Panel", command=self._delete_panel, accelerator="Del")
+        edit_menu.add_command(label="Duplicate Panel", command=self._duplicate_panel, accelerator="Ctrl+D")
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Move Panel Up", command=self._move_panel_up, accelerator="Ctrl+Up")
+        edit_menu.add_command(label="Move Panel Down", command=self._move_panel_down, accelerator="Ctrl+Down")
+        
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0, bg=self.accent_color, fg=self.text_color)
         help_menu.add_command(label="About", command=self._show_about)
+        help_menu.add_command(label="Keyboard Shortcuts", command=self._show_shortcuts)
         
         # Add menus to menubar
         menubar.add_cascade(label="File", menu=file_menu)
+        menubar.add_cascade(label="Edit", menu=edit_menu)
         menubar.add_cascade(label="Help", menu=help_menu)
         
         self.root.config(menu=menubar)
+        
+        # Set keyboard shortcuts
+        self.root.bind("<Control-n>", lambda e: self._new_project())
+        self.root.bind("<Control-o>", lambda e: self._open_project())
+        self.root.bind("<Control-s>", lambda e: self._save_project())
+        self.root.bind("<Control-S>", lambda e: self._save_project_as())
+        self.root.bind("<Control-a>", lambda e: self._add_panel())
+        self.root.bind("<Delete>", lambda e: self._delete_panel())
+        self.root.bind("<Control-d>", lambda e: self._duplicate_panel())
+        self.root.bind("<Control-Up>", lambda e: self._move_panel_up())
+        self.root.bind("<Control-Down>", lambda e: self._move_panel_down())
     
     def _create_main_layout(self):
         """Create the main application layout."""
@@ -199,7 +228,7 @@ class StoryboardApp:
         self.pdf_preview = PDFPreview(
             self.preview_tab,
             pdf_exporter=self.pdf_exporter,
-            app=self  # Add this line to pass the app reference directly
+            app=self
         )
         self.pdf_preview.pack(fill=tk.BOTH, expand=True)
         
@@ -484,6 +513,27 @@ class StoryboardApp:
             "A simple desktop application for creating, editing, and exporting storyboards for film production.\n\n"
             "Created with Python and Tkinter."
         )
+    
+    def _show_shortcuts(self):
+        """Show keyboard shortcuts dialog."""
+        shortcuts = """
+        Keyboard Shortcuts:
+        
+        File:
+        Ctrl+N: New Project
+        Ctrl+O: Open Project
+        Ctrl+S: Save Project
+        Ctrl+Shift+S: Save Project As
+        
+        Edit:
+        Ctrl+A: Add Panel
+        Delete: Delete Selected Panel
+        Ctrl+D: Duplicate Selected Panel
+        Ctrl+Up: Move Panel Up
+        Ctrl+Down: Move Panel Down
+        """
+        
+        messagebox.showinfo("Keyboard Shortcuts", shortcuts)
     
     def _on_panel_select(self, index):
         """Handle panel selection from the list."""
