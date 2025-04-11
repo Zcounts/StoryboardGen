@@ -103,8 +103,7 @@ class StoryboardApp:
         style.configure("Hover.TFrame", background="#3E3E42")  # Darker gray for hover
         style.configure("Hover.TLabel", background="#3E3E42", foreground=self.text_color)  # Added this
         
-        # Configure styles for specific widgets
-        style.configure("PanedWindow", background=self.bg_color)
+        # Note: Removed the PanedWindow style configuration as it was causing the error
     
     def _create_menu(self):
         """Create the application menu."""
@@ -134,14 +133,16 @@ class StoryboardApp:
     def _create_main_layout(self):
         """Create the main application layout."""
         # Create main paned window to divide panels list and editor
-        self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL, style="PanedWindow")
+        # Removed the style parameter that was causing the error
+        self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         self.main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Left frame for panels list
         self.panels_frame = ttk.Frame(self.main_paned, style="TFrame")
         
         # Right paned window to divide editor and preview
-        self.right_paned = ttk.PanedWindow(self.main_paned, orient=tk.VERTICAL, style="PanedWindow")
+        # Removed the style parameter here as well
+        self.right_paned = ttk.PanedWindow(self.main_paned, orient=tk.VERTICAL)
         
         # Add frames to main paned window
         self.main_paned.add(self.panels_frame, weight=1)
