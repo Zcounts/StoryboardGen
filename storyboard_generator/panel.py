@@ -29,12 +29,21 @@ class Panel:
         self.equip = "STICKS"  # e.g., STICKS, GIMBAL
         self.action = ""
         
-        # New fields
+        # Background info
         self.bgd = "No"  # Yes/No
         self.bgd_notes = ""  # Only used when bgd is "Yes"
+        
+        # Additional fields (original)
         self.hair_makeup = ""  # Hair and makeup notes
         self.props = ""  # Props notes
         self.vfx = ""  # VFX notes
+        
+        # New fields for shot list
+        self.setup_number = "1"  # Setup grouping number
+        self.camera_name = ""    # Custom camera name (e.g. "fx30")
+        self.shot_time = ""      # Time to shoot (minutes/hours)
+        self.audio_notes = ""    # Audio notes
+        self.subject = ""        # Who's on screen
         
         # Image properties
         self.image_path = None
@@ -179,6 +188,11 @@ class Panel:
             'hair_makeup': self.hair_makeup,
             'props': self.props,
             'vfx': self.vfx,
+            'setup_number': self.setup_number,
+            'camera_name': self.camera_name,
+            'shot_time': self.shot_time,
+            'audio_notes': self.audio_notes,
+            'subject': self.subject,
             'image_path': self.image_path,
             'order': self.order,
             'last_modified': datetime.now().isoformat()
@@ -215,11 +229,18 @@ class Panel:
         panel.action = data.get('action', '')
         panel.bgd = data.get('bgd', 'No')
         
-        # New fields
+        # Original additional fields
         panel.bgd_notes = data.get('bgd_notes', '')
         panel.hair_makeup = data.get('hair_makeup', '')
         panel.props = data.get('props', '')
         panel.vfx = data.get('vfx', '')
+        
+        # New fields for shot list
+        panel.setup_number = data.get('setup_number', '1')
+        panel.camera_name = data.get('camera_name', '')
+        panel.shot_time = data.get('shot_time', '')
+        panel.audio_notes = data.get('audio_notes', '')
+        panel.subject = data.get('subject', '')
         
         # Set order
         panel.order = data.get('order', 0)
