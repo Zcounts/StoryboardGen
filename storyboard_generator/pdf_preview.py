@@ -297,54 +297,6 @@ class PDFPreview(ttk.Frame):
             font=("Arial", int(base_font_size * 2 * scale), "bold")
         )
         
-        # Draw camera color legend
-        legend_y = title_y + 25 * scale
-        legend_x = (display_width - page_display_width) // 2 + 30 * scale
-        
-        # Draw legend title
-        legend_title = "Camera Colors:"
-        self.preview_canvas.create_text(
-            legend_x, legend_y,
-            text=legend_title,
-            fill="black",
-            font=("Arial", int(base_font_size * scale), "bold"),
-            anchor="w"
-        )
-        
-        # Draw camera legend entries
-        legend_spacing = 120 * scale
-        for i, (camera, color) in enumerate(self.camera_colors.items()):
-            box_x = legend_x + (i % 3) * legend_spacing
-            box_y = legend_y + 20 * scale + (i // 3) * 20 * scale
-            
-            # Draw color box
-            self.preview_canvas.create_rectangle(
-                box_x, box_y,
-                box_x + 15 * scale, box_y + 15 * scale,
-                fill=color,
-                outline="black"
-            )
-            
-            # Draw camera name and custom name if available
-            camera_label = camera
-            camera_names = []
-            
-            for panel in self.all_panels:
-                if panel.camera == camera and hasattr(panel, 'camera_name') and panel.camera_name:
-                    if panel.camera_name not in camera_names:
-                        camera_names.append(panel.camera_name)
-            
-            if camera_names:
-                camera_label += f" ({', '.join(camera_names)})"
-                
-            self.preview_canvas.create_text(
-                box_x + 25 * scale, box_y + 7 * scale,
-                text=camera_label,
-                fill="black",
-                font=("Arial", int(base_font_size * 0.8 * scale), "normal"),
-                anchor="w"
-            )
-        
         # Calculate start index for panels on this page
         start_idx = page_number * 6
         end_idx = min(start_idx + 6, len(self.all_panels))
@@ -354,10 +306,10 @@ class PDFPreview(ttk.Frame):
         if page_panels:
             # Calculate panel size and positions
             margin = 20 * scale
-            legend_height = 60 * scale  # Space for the legend at the top
-            grid_top = (display_height - page_display_height) // 2 + margin + legend_height
+            title_height = 40 * scale  # Space for the title at the top
+            grid_top = (display_height - page_display_height) // 2 + margin + title_height
             grid_width = page_display_width - (2 * margin)
-            grid_height = page_display_height - legend_height - (2 * margin)
+            grid_height = page_display_height - title_height - (2 * margin)
             
             panel_width = grid_width // 3
             panel_height = grid_height // 2
@@ -378,9 +330,8 @@ class PDFPreview(ttk.Frame):
                 shot_color = self.shot_colors.get(shot_letter, "#555555")
                 shot_color = self._color_to_hex(shot_color)
                 
-                # Get camera color
+                # Get camera color for the text indicator
                 camera_color = self.camera_colors.get(panel.camera, "#555555")
-                camera_color = self._color_to_hex(camera_color)
                 
                 # Draw panel outline with shot color
                 self.preview_canvas.create_rectangle(
@@ -389,43 +340,48 @@ class PDFPreview(ttk.Frame):
                     width=2
                 )
                 
-                # Draw header with camera color
-                header_height = 20 * scale
-                self.preview_canvas.create_rectangle(
-                    x1, y1, x2, y1 + header_height,
-                    fill=camera_color,
-                    outline=camera_color
-                )
-                
-                # Add shot number and setup text
+                # Add shot number on left and lens on right
                 shot_text = f"{panel.scene_number}{panel.shot_number}"
+                lens_text = f"Lens: {panel.lens}" if panel.lens else ""
+                
+                # Shot number (top left)
                 self.preview_canvas.create_text(
-                    x1 + 5 * scale, y1 + header_height // 2,
+                    x1 + 10 * scale, y1 + 10 * scale,
                     text=shot_text,
-                    fill=self.text_color,
+                    fill="black",
                     font=("Arial", int(base_font_size * 0.9 * scale), "bold"),
                     anchor="w"
                 )
                 
-                # Add setup info
-                setup_text = f"Setup {panel.setup_number}" if hasattr(panel, 'setup_number') and panel.setup_number else ""
-                if setup_text:
+                # Lens info (top right)
+                if lens_text:
                     self.preview_canvas.create_text(
-                        x2 - 5 * scale, y1 + header_height // 2,
-                        text=setup_text,
-                        fill=self.text_color,
-                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        x2 - 10 * scale, y1 + 10 * scale,
+                        text=lens_text,
+                        fill="black",
+                        font=("Arial", int(base_font_size * 0.9 * scale)),
                         anchor="e"
                     )
                 
+                # Add setup info below shot number
+                setup_text = f"Setup {panel.setup_number}" if hasattr(panel, 'setup_number') and panel.setup_number else ""
+                if setup_text:
+                    self.preview_canvas.create_text(
+                        x1 + 10 * scale, y1 + 30 * scale,
+                        text=setup_text,
+                        fill="black",
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="w"
+                    )
+                
                 # Draw image area
-                img_y = y1 + header_height + 5 * scale
+                img_y = y1 + 50 * scale
                 img_height = panel_height * 0.45
                 self.preview_canvas.create_rectangle(
                     x1 + 5 * scale, img_y, 
                     x2 - 5 * scale, img_y + img_height,
                     outline="#555555",
-                    fill="#444444",
+                    fill="#FFFFFF",
                     width=1
                 )
                 
@@ -473,7 +429,7 @@ class PDFPreview(ttk.Frame):
                     x1 + 5 * scale, tech_y, 
                     x2 - 5 * scale, tech_y + tech_height,
                     outline="#555555",
-                    fill="#222222",
+                    fill="#F8F8F8",
                     width=1
                 )
                 
@@ -493,7 +449,7 @@ class PDFPreview(ttk.Frame):
                         x1 + 5 * scale + j * col_width + col_width / 2, 
                         tech_y + 8 * scale,
                         text=header,
-                        fill="#AAAAAA",
+                        fill="#666666",
                         font=("Arial", int(base_font_size * 0.7 * scale)),
                         anchor="center"
                     )
@@ -503,66 +459,143 @@ class PDFPreview(ttk.Frame):
                         x1 + 5 * scale + j * col_width + col_width / 2, 
                         tech_y + 8 * scale + 14 * scale,
                         text=value,
-                        fill="#DDDDDD",
+                        fill="#000000",
                         font=("Arial", int(base_font_size * 0.7 * scale)),
                         anchor="center"
                     )
                 
-                # Action and description area
-                desc_y = tech_y + tech_height + 5 * scale
-                desc_height = y2 - desc_y - 5 * scale
+                # Display additional information at the bottom
+                info_y = tech_y + tech_height + 10 * scale
+                line_height = int(base_font_size * 0.8 * scale) + 2
+                max_width = panel_width - 20 * scale
+                curr_y = info_y
                 
-                # Display action, description, and notes
-                text_padding = 8 * scale
-                text_y = desc_y + text_padding
-                text_font_size = int(base_font_size * 0.8 * scale)
-                line_height = text_font_size + 4
+                # Camera with color indicator
+                indicator_size = 8 * scale
+                self.preview_canvas.create_rectangle(
+                    x1 + 10 * scale, curr_y,
+                    x1 + 10 * scale + indicator_size, curr_y + indicator_size,
+                    fill=camera_color,
+                    outline=camera_color
+                )
+                
+                camera_text = f"CAMERA: {panel.camera}"
+                if hasattr(panel, 'camera_name') and panel.camera_name:
+                    camera_text += f" ({panel.camera_name})"
+                    
+                self.preview_canvas.create_text(
+                    x1 + 10 * scale + indicator_size + 5, curr_y + indicator_size/2,
+                    text=camera_text,
+                    fill="black",
+                    font=("Arial", int(base_font_size * 0.8 * scale), "bold"),
+                    anchor="w"
+                )
+                curr_y += line_height + 2
                 
                 # Action
                 if panel.action:
-                    action_text = f"ACTION: {panel.action}"
-                    if len(action_text) > 30:
-                        action_text = action_text[:27] + "..."
-                        
                     self.preview_canvas.create_text(
-                        x1 + 10 * scale, text_y,
-                        text=action_text,
+                        x1 + 10 * scale, curr_y,
+                        text=f"ACTION: {panel.action}",
                         fill="black",
-                        font=("Arial", text_font_size),
-                        anchor="nw"
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
                     )
-                    text_y += line_height
+                    # Calculate how many lines this text takes up
+                    text_height = self._calc_text_height(panel.action, max_width, int(base_font_size * 0.8 * scale))
+                    curr_y += text_height + 2
                 
                 # Subject
                 if hasattr(panel, 'subject') and panel.subject:
-                    subject_text = f"SUBJECT: {panel.subject}"
-                    if len(subject_text) > 30:
-                        subject_text = subject_text[:27] + "..."
-                        
                     self.preview_canvas.create_text(
-                        x1 + 10 * scale, text_y,
-                        text=subject_text,
+                        x1 + 10 * scale, curr_y,
+                        text=f"SUBJECT: {panel.subject}",
                         fill="black",
-                        font=("Arial", text_font_size),
-                        anchor="nw"
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
                     )
-                    text_y += line_height
+                    # Calculate how many lines this text takes up
+                    text_height = self._calc_text_height(panel.subject, max_width, int(base_font_size * 0.8 * scale))
+                    curr_y += text_height + 2
+                
+                # Background
+                if panel.bgd == "Yes" and panel.bgd_notes:
+                    self.preview_canvas.create_text(
+                        x1 + 10 * scale, curr_y,
+                        text=f"BGD: {panel.bgd_notes}",
+                        fill="black",
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
+                    )
+                    # Calculate how many lines this text takes up
+                    text_height = self._calc_text_height(panel.bgd_notes, max_width, int(base_font_size * 0.8 * scale))
+                    curr_y += text_height + 2
                 
                 # Description
                 if panel.description:
-                    desc_text = panel.description
-                    max_chars = 40
-                    if len(desc_text) > max_chars:
-                        desc_text = desc_text[:max_chars-3] + "..."
-                        
                     self.preview_canvas.create_text(
-                        x1 + 10 * scale, text_y,
-                        text=desc_text,
+                        x1 + 10 * scale, curr_y,
+                        text=panel.description,
                         fill="black",
-                        font=("Arial", text_font_size),
-                        anchor="nw"
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
                     )
-        
+                    # Calculate how many lines this text takes up
+                    text_height = self._calc_text_height(panel.description, max_width, int(base_font_size * 0.8 * scale))
+                    curr_y += text_height + 5
+                
+                # Additional fields (only if enabled)
+                if hasattr(panel, 'hair_makeup_enabled') and panel.hair_makeup_enabled == "Yes" and panel.hair_makeup:
+                    self.preview_canvas.create_text(
+                        x1 + 10 * scale, curr_y,
+                        text=f"H/M/W: {panel.hair_makeup}",
+                        fill="black",
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
+                    )
+                    text_height = self._calc_text_height(panel.hair_makeup, max_width, int(base_font_size * 0.8 * scale))
+                    curr_y += text_height + 2
+                
+                if hasattr(panel, 'props_enabled') and panel.props_enabled == "Yes" and panel.props:
+                    self.preview_canvas.create_text(
+                        x1 + 10 * scale, curr_y,
+                        text=f"PROPS: {panel.props}",
+                        fill="black",
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
+                    )
+                    text_height = self._calc_text_height(panel.props, max_width, int(base_font_size * 0.8 * scale))
+                    curr_y += text_height + 2
+                
+                if hasattr(panel, 'vfx_enabled') and panel.vfx_enabled == "Yes" and panel.vfx:
+                    self.preview_canvas.create_text(
+                        x1 + 10 * scale, curr_y,
+                        text=f"VFX: {panel.vfx}",
+                        fill="black",
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
+                    )
+                    text_height = self._calc_text_height(panel.vfx, max_width, int(base_font_size * 0.8 * scale))
+                    curr_y += text_height + 2
+                
+                # Audio notes
+                if hasattr(panel, 'audio_notes') and panel.audio_notes:
+                    self.preview_canvas.create_text(
+                        x1 + 10 * scale, curr_y,
+                        text=f"AUDIO: {panel.audio_notes}",
+                        fill="black",
+                        font=("Arial", int(base_font_size * 0.8 * scale)),
+                        anchor="nw",
+                        width=max_width
+                    )
+                
         # Draw empty panels for remaining slots if needed
         for i in range(len(page_panels), 6):
             row = i // 3
@@ -570,10 +603,10 @@ class PDFPreview(ttk.Frame):
             
             # Calculate position
             margin = 20 * scale
-            legend_height = 60 * scale  # Space for the legend at the top
-            grid_top = (display_height - page_display_height) // 2 + margin + legend_height
+            title_height = 40 * scale  # Space for the title at the top
+            grid_top = (display_height - page_display_height) // 2 + margin + title_height
             grid_width = page_display_width - (2 * margin)
-            grid_height = page_display_height - legend_height - (2 * margin)
+            grid_height = page_display_height - title_height - (2 * margin)
             
             panel_width = grid_width // 3
             panel_height = grid_height // 2
@@ -586,9 +619,35 @@ class PDFPreview(ttk.Frame):
             # Draw empty panel outline
             self.preview_canvas.create_rectangle(
                 x1, y1, x2, y2,
-                outline="#333333",
+                outline="#AAAAAA",
                 width=1
             )
         
         # Update scroll region
         self.preview_canvas.configure(scrollregion=(0, 0, display_width, display_height))
+    
+    def _calc_text_height(self, text, max_width, font_size):
+        """Calculate the height that text will take up when wrapped to a certain width."""
+        # Simple estimation: assume each character is about 0.5 * font_size wide
+        # and calculate how many lines the text will wrap to
+        if not text:
+            return font_size
+            
+        chars_per_line = int(max_width / (0.5 * font_size))
+        if chars_per_line <= 0:
+            chars_per_line = 1
+            
+        # Simple line-wrapping estimation
+        words = text.split()
+        lines = 1
+        current_line_length = 0
+        
+        for word in words:
+            word_length = len(word) + 1  # +1 for the space
+            if current_line_length + word_length <= chars_per_line:
+                current_line_length += word_length
+            else:
+                lines += 1
+                current_line_length = word_length
+        
+        return lines * (font_size + 2)  # Add a bit of spacing between lines
