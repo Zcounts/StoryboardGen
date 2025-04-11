@@ -365,53 +365,17 @@ class PanelsList(ttk.Frame):
             thumb_label.bind("<Button-1>", lambda e, i=index: self._on_panel_click(i, e))
     
     def _on_panel_hover(self, index, is_enter):
-        """
-        Handle hover events on panel items.
-        
-        Args:
-            index: Index of the panel
-            is_enter: True if mouse entered, False if mouse left
-        """
+        """Handle hover events on panel items."""
         # Skip if this is the selected panel
         if index == self.selected_index:
             return
-            
+                
         # Get the frame for this index
         if 0 <= index < len(self.panel_frames):
             frame = self.panel_frames[index]
             if is_enter:
                 # Highlight on hover
-                frame.configure(style="Hover.TFrame")
                 frame.configure(background=self.hover_color)
-                
-                # Change text color too
-                for child in frame.winfo_children():
-                    if isinstance(child, ttk.Label):
-                        child.configure(style="Hover.TLabel")
-                        child.configure(background=self.hover_color, foreground=self.text_color)
-                    elif isinstance(child, ttk.Frame):
-                        child.configure(background=self.hover_color)
-                        for subchild in child.winfo_children():
-                            if isinstance(subchild, ttk.Label):
-                                subchild.configure(style="Hover.TLabel")
-                                subchild.configure(background=self.hover_color, foreground=self.text_color)
-                            elif isinstance(subchild, tk.Label):  # For image labels
-                                subchild.configure(background=self.hover_color)
             else:
                 # Remove highlight
-                frame.configure(style="TFrame")
                 frame.configure(background=self.bg_color)
-                
-                # Reset text color
-                for child in frame.winfo_children():
-                    if isinstance(child, ttk.Label):
-                        child.configure(style="TLabel")
-                        child.configure(background=self.bg_color, foreground=self.text_color)
-                    elif isinstance(child, ttk.Frame):
-                        child.configure(background=self.bg_color)
-                        for subchild in child.winfo_children():
-                            if isinstance(subchild, ttk.Label):
-                                subchild.configure(style="TLabel")
-                                subchild.configure(background=self.bg_color, foreground=self.text_color)
-                            elif isinstance(subchild, tk.Label):  # For image labels
-                                subchild.configure(background=self.bg_color)
