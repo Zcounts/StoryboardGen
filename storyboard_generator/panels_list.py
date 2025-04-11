@@ -184,7 +184,6 @@ class PanelsList(ttk.Frame):
                                     subchild.configure(background=self.selected_color)
                 else:
                     # Use standard style for unselected items
-                    frame.configure(style="TFrame")
                     frame.configure(background=self.bg_color)
                     
                     # Reset all child labels
