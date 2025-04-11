@@ -1,5 +1,4 @@
-# pdf_exporter.py
-
+# storyboard_generator/pdf_exporter.py
 import os
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -22,9 +21,6 @@ class PDFExporter:
     
     def _setup_styles(self):
         """Set up paragraph styles for the PDF."""
-        # Register fonts if needed
-        # pdfmetrics.registerFont(TTFont('Helvetica', 'Helvetica.ttf'))
-        
         # Get base styles
         self.styles = getSampleStyleSheet()
         
@@ -82,6 +78,23 @@ class PDFExporter:
             alignment=TA_LEFT,
             textColor=colors.darkgrey
         )
+        
+        self.section_header_style = ParagraphStyle(
+            name='SectionHeaderStyle',
+            parent=self.styles['Heading3'],
+            fontSize=10,
+            alignment=TA_LEFT,
+            textColor=colors.black,
+            spaceAfter=2
+        )
+        
+        self.additional_info_style = ParagraphStyle(
+            name='AdditionalInfoStyle',
+            parent=self.styles['Normal'],
+            fontSize=8,
+            alignment=TA_LEFT,
+            leading=10
+        )
     
     def export_storyboard(self, panels, output_path, project_name="Storyboard"):
         """
@@ -102,8 +115,9 @@ class PDFExporter:
             bottomMargin=1*cm
         )
         
-        # Sort panels by order
-        sorted_panels = sorted(panels, key=lambda p: p.order)
+        # Sort panels by scene and then by shot
+        sorted_panels = sorted(panels, key=lambda p: (int(p.scene_number) if p.scene_number.isdigit() else float('inf'), 
+                                                    p.shot_number))
         
         # Create content elements
         elements = []
@@ -112,44 +126,64 @@ class PDFExporter:
         elements.append(Paragraph(f"<b>{project_name}</b>", self.title_style))
         elements.append(Spacer(1, 5*mm))
         
-        # Process panels in groups of 4 (for 4 panels per row)
-        panel_groups = [sorted_panels[i:i+4] for i in range(0, len(sorted_panels), 4)]
+        # Group panels by scene
+        scene_groups = {}
+        for panel in sorted_panels:
+            scene_number = panel.scene_number
+            if scene_number not in scene_groups:
+                scene_groups[scene_number] = []
+            scene_groups[scene_number].append(panel)
         
-        # Process each group
-        for group in panel_groups:
-            # Create panel elements for this row
-            panel_elements = []
+        # Sort scenes numerically
+        sorted_scenes = sorted(scene_groups.keys(), key=lambda s: int(s) if s.isdigit() else float('inf'))
+        
+        # Process each scene
+        for scene_number in sorted_scenes:
+            # Add scene header
+            elements.append(Paragraph(f"<b>Scene {scene_number}</b>", self.header_style))
+            elements.append(Spacer(1, 2*mm))
             
-            for panel in group:
-                panel_element = self._create_panel_element(panel)
-                panel_elements.append(panel_element)
+            # Get panels for this scene
+            scene_panels = scene_groups[scene_number]
             
-            # Ensure we have 4 panels in the row by adding empty panels if needed
-            while len(panel_elements) < 4:
-                panel_elements.append(self._create_empty_panel())
+            # Process panels in groups of 3 (for 3 panels per row)
+            panel_groups = [scene_panels[i:i+3] for i in range(0, len(scene_panels), 3)]
             
-            # Create a table for this row of panels
-            panel_row = Table(
-                [panel_elements],
-                colWidths=[6.5*cm, 6.5*cm, 6.5*cm, 6.5*cm],
-                rowHeights=[10*cm]
-            )
+            # Process each group
+            for group in panel_groups:
+                # Create panel elements for this row
+                panel_elements = []
+                
+                for panel in group:
+                    panel_element = self._create_panel_element(panel)
+                    panel_elements.append(panel_element)
+                
+                # Ensure we have 3 panels in the row by adding empty panels if needed
+                while len(panel_elements) < 3:
+                    panel_elements.append(self._create_empty_panel())
+                
+                # Create a table for this row of panels
+                panel_row = Table(
+                    [panel_elements],
+                    colWidths=[8.5*cm, 8.5*cm, 8.5*cm],
+                    rowHeights=[12*cm]
+                )
+                
+                # Add styling to the row
+                panel_row.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 3),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ]))
+                
+                # Add the row to the document
+                elements.append(panel_row)
+                elements.append(Spacer(1, 5*mm))
             
-            # Add styling to the row
-            panel_row.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 3),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-                ('TOPPADDING', (0, 0), (-1, -1), 3),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-            ]))
-            
-            # Add the row to the document
-            elements.append(panel_row)
+            # Add space between scenes
             elements.append(Spacer(1, 5*mm))
-        
-        # Add page numbers
-        # This would require a custom PageTemplate, omitted for simplicity
         
         # Build the PDF
         doc.build(elements)
@@ -162,16 +196,22 @@ class PDFExporter:
         panel_elements = []
         
         # Create header row with shot info
+        shot_text = panel.get_full_shot_number() if hasattr(panel, 'get_full_shot_number') else f"{panel.scene_number}{panel.shot_number}"
         header_data = [
             [
-                self._create_shot_label(panel),
-                self._create_lens_label(panel),
+                Paragraph(shot_text, self.shot_style),
+                Paragraph(panel.lens, ParagraphStyle(
+                    name='LensStyle',
+                    parent=self.styles['Normal'],
+                    fontSize=9,
+                    alignment=TA_RIGHT
+                ))
             ]
         ]
         
         header_table = Table(
             header_data,
-            colWidths=[3.25*cm, 3.25*cm],
+            colWidths=[4.25*cm, 4.25*cm],
             rowHeights=[0.5*cm]
         )
         
@@ -205,7 +245,7 @@ class PDFExporter:
         
         tech_table = Table(
             tech_data,
-            colWidths=[1.625*cm, 1.625*cm, 1.625*cm, 1.625*cm],
+            colWidths=[2.125*cm, 2.125*cm, 2.125*cm, 2.125*cm],
             rowHeights=[0.5*cm, 0.6*cm]
         )
         
@@ -227,16 +267,38 @@ class PDFExporter:
         
         if action_text:
             action_text += f"<br/><b>BGD:</b> {panel.bgd}"
+            if panel.bgd == "Yes" and panel.bgd_notes:
+                action_text += f": {panel.bgd_notes}"
             panel_elements.append(Paragraph(action_text, self.action_style))
         
-        # Notes or additional description
+        # Description
         if panel.description:
-            panel_elements.append(Paragraph(panel.description, self.notes_style))
+            panel_elements.append(Paragraph(panel.description, self.action_style))
+        
+        # Additional information sections
+        if panel.hair_makeup or panel.props or panel.vfx:
+            additional_text = ""
+            
+            if panel.hair_makeup:
+                additional_text += f"<b>HAIR/MAKEUP:</b> {panel.hair_makeup}<br/>"
+            
+            if panel.props:
+                additional_text += f"<b>PROPS:</b> {panel.props}<br/>"
+            
+            if panel.vfx:
+                additional_text += f"<b>VFX:</b> {panel.vfx}<br/>"
+            
+            if additional_text:
+                panel_elements.append(Paragraph(additional_text, self.additional_info_style))
+        
+        # Notes
+        if panel.notes:
+            panel_elements.append(Paragraph(f"<i>Notes: {panel.notes}</i>", self.notes_style))
         
         # Combine all elements into a single panel table
         panel_table = Table(
             [[element] for element in panel_elements],
-            colWidths=[6.5*cm],
+            colWidths=[8.5*cm],
         )
         
         # Style the panel table with a border
@@ -254,8 +316,8 @@ class PDFExporter:
         """Create an empty panel placeholder."""
         panel_table = Table(
             [[""]],
-            colWidths=[6.5*cm],
-            rowHeights=[10*cm]
+            colWidths=[8.5*cm],
+            rowHeights=[12*cm]
         )
         
         panel_table.setStyle(TableStyle([
@@ -265,37 +327,14 @@ class PDFExporter:
         
         return panel_table
     
-    def _create_shot_label(self, panel):
-        """Create a formatted shot label for a panel."""
-        shot_text = panel.shot_number if panel.shot_number else ""
-        if not shot_text:
-            shot_text = f"{panel.order + 1}"
-        
-        shot_text = f"{shot_text} - {panel.camera}"
-        
-        return Paragraph(shot_text, self.shot_style)
-    
-    def _create_lens_label(self, panel):
-        """Create a formatted lens label for a panel."""
-        lens_text = panel.lens if panel.lens else ""
-        
-        lens_style = ParagraphStyle(
-            name='LensStyle',
-            parent=self.styles['Normal'],
-            fontSize=9,
-            alignment=TA_RIGHT
-        )
-        
-        return Paragraph(lens_text, lens_style)
-    
     def _create_image_element(self, panel):
         """Create an image element for the panel."""
         if not panel.image or not panel.image_path or not os.path.exists(panel.image_path):
             # Create an empty box if no image
             img_table = Table(
                 [["No Image"]],
-                colWidths=[6.5*cm],
-                rowHeights=[5*cm]
+                colWidths=[8.5*cm],
+                rowHeights=[6*cm]
             )
             
             img_table.setStyle(TableStyle([
@@ -316,12 +355,12 @@ class PDFExporter:
             # Calculate aspect ratio
             aspect = img_width / img_height
             
-            # Target width is 6.5 cm (about 184 points) minus some padding
-            target_width = 6.3 * cm
+            # Target width is 8.5 cm (about 240 points) minus some padding
+            target_width = 8.3 * cm
             target_height = target_width / aspect
             
             # Ensure the height doesn't get too tall
-            max_height = 5 * cm
+            max_height = 6 * cm
             if target_height > max_height:
                 target_height = max_height
                 target_width = target_height * aspect
@@ -332,8 +371,8 @@ class PDFExporter:
             # Create a table to hold the image and center it
             img_table = Table(
                 [[img_obj]],
-                colWidths=[6.5*cm],
-                rowHeights=[5*cm]
+                colWidths=[8.5*cm],
+                rowHeights=[6*cm]
             )
             
             img_table.setStyle(TableStyle([
@@ -349,8 +388,8 @@ class PDFExporter:
             # Return an error placeholder
             img_table = Table(
                 [["Image Error"]],
-                colWidths=[6.5*cm],
-                rowHeights=[5*cm]
+                colWidths=[8.5*cm],
+                rowHeights=[6*cm]
             )
             
             img_table.setStyle(TableStyle([
@@ -363,21 +402,67 @@ class PDFExporter:
             return img_table
     
     def _get_shot_color(self, panel):
-        """Get a color for the shot label based on the shot number."""
-        # Extract alphanumeric part from shot number if it exists
-        shot_num = panel.shot_number if panel.shot_number else str(panel.order + 1)
+        """Get a color for the shot label based on the scene number."""
+        # Extract scene number
+        scene_num = panel.scene_number
         
-        # Define a set of colors for different shots
+        # Define a set of colors for different scenes
         colors_list = [
             colors.blue,
+            colors.darkgreen,
             colors.orange,
-            colors.green,
             colors.purple,
-            colors.red,
+            colors.darkred,
             colors.brown,
-            colors.darkgrey
+            colors.darkslategray
         ]
         
-        # Get color based on the first character of the shot number
-        color_index = hash(shot_num[0]) % len(colors_list)
+        # Get color based on the scene number
+        try:
+            scene_int = int(scene_num)
+            color_index = (scene_int - 1) % len(colors_list)
+        except ValueError:
+            color_index = hash(scene_num) % len(colors_list)
+            
         return colors_list[color_index]
+    
+    def create_preview(self, panel):
+        """
+        Create a preview of a single panel for display in the UI.
+        
+        Args:
+            panel: The Panel object to preview
+            
+        Returns:
+            PIL.Image: An image of the panel preview
+        """
+        # This is a simplified version that would need to be implemented in a real application
+        # For now, return a placeholder method that would be used for generating a preview
+        from io import BytesIO
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate
+        
+        # Create a PDF in memory
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=(10*cm, 15*cm),
+            rightMargin=0.5*cm,
+            leftMargin=0.5*cm,
+            topMargin=0.5*cm,
+            bottomMargin=0.5*cm
+        )
+        
+        # Create the panel element
+        elements = []
+        panel_element = self._create_panel_element(panel)
+        elements.append(panel_element)
+        
+        # Build the PDF
+        doc.build(elements)
+        
+        # Convert PDF to image (simplified version)
+        # In a real implementation, you would use a PDF library to render the PDF to an image
+        # For now, just return a placeholder message
+        buffer.seek(0)
+        return buffer
