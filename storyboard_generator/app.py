@@ -326,10 +326,6 @@ class StoryboardApp:
         if 0 <= self.current_panel_index < len(self.panels):
             self.panels_listbox.selection_set(self.current_panel_index)
 
-    # Update to app.py - import the PDFExporter
-
-from pdf_exporter import PDFExporter
-
 # Then update the _export_pdf method:
 
 def _export_pdf(self):
