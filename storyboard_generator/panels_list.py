@@ -168,20 +168,17 @@ class PanelsList(ttk.Frame):
             for i, frame in enumerate(self.panel_frames):
                 if i == index:
                     # Use colored background for selected item
-                    frame.configure(style="Selected.TFrame")
                     frame.configure(background=self.selected_color)
                     
                     # Apply distinct style to all child labels
                     for child in frame.winfo_children():
                         if isinstance(child, ttk.Label):
-                            child.configure(style="Selected.TLabel")
                             child.configure(background=self.selected_color, foreground="white")
                         elif isinstance(child, ttk.Frame):
                             child.configure(background=self.selected_color)
                             # Also handle nested frames
                             for subchild in child.winfo_children():
                                 if isinstance(subchild, ttk.Label):
-                                    subchild.configure(style="Selected.TLabel")
                                     subchild.configure(background=self.selected_color, foreground="white")
                                 elif isinstance(subchild, tk.Label):  # For image labels
                                     subchild.configure(background=self.selected_color)
@@ -200,7 +197,6 @@ class PanelsList(ttk.Frame):
                             # Also handle nested frames
                             for subchild in child.winfo_children():
                                 if isinstance(subchild, ttk.Label):
-                                    subchild.configure(style="TLabel")
                                     subchild.configure(background=self.bg_color, foreground=self.text_color)
                                 elif isinstance(subchild, tk.Label):  # For image labels
                                     subchild.configure(background=self.bg_color)
