@@ -66,8 +66,14 @@ class PanelEditor(ttk.Frame):
         # Technical info section - Size, Type, Move, Equip
         self._create_technical_info_section()
         
+        # Setup and Camera section (new)
+        self._create_setup_camera_section()
+        
         # Action info section
         self._create_action_info_section()
+        
+        # Shot list specific section (new)
+        self._create_shot_list_section()
         
         # New sections for additional fields
         self._create_additional_info_section()
@@ -132,19 +138,44 @@ class PanelEditor(ttk.Frame):
         full_shot_entry = ttk.Entry(info_grid, textvariable=self.full_shot_var, state="readonly")
         full_shot_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
         
-        # Camera
-        ttk.Label(info_grid, text="Camera:").grid(row=0, column=2, sticky="w", padx=5, pady=5)
-        self.camera_var = tk.StringVar(value="Camera 1")
-        ttk.Entry(info_grid, textvariable=self.camera_var).grid(row=0, column=3, sticky="ew", padx=5, pady=5)
-        
         # Lens
-        ttk.Label(info_grid, text="Lens:").grid(row=1, column=2, sticky="w", padx=5, pady=5)
+        ttk.Label(info_grid, text="Lens:").grid(row=0, column=2, sticky="w", padx=5, pady=5)
         self.lens_var = tk.StringVar()
-        ttk.Entry(info_grid, textvariable=self.lens_var).grid(row=1, column=3, sticky="ew", padx=5, pady=5)
+        ttk.Entry(info_grid, textvariable=self.lens_var).grid(row=0, column=3, sticky="ew", padx=5, pady=5)
         
         # Configure grid columns to expand
         info_grid.columnconfigure(1, weight=1)
         info_grid.columnconfigure(3, weight=1)
+    
+    def _create_setup_camera_section(self):
+        """Create the setup and camera section."""
+        setup_frame = ttk.LabelFrame(self.scrollable_frame, text="Setup and Camera Information")
+        setup_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Grid for setup info
+        setup_grid = ttk.Frame(setup_frame)
+        setup_grid.pack(fill="x", padx=10, pady=10)
+        
+        # Setup Number
+        ttk.Label(setup_grid, text="Setup Number:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.setup_number_var = tk.StringVar(value="1")
+        ttk.Entry(setup_grid, textvariable=self.setup_number_var).grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        
+        # Camera (dropdown)
+        ttk.Label(setup_grid, text="Camera:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.camera_var = tk.StringVar(value="Camera 1")
+        camera_combo = ttk.Combobox(setup_grid, textvariable=self.camera_var)
+        camera_combo['values'] = ("Camera 1", "Camera 2", "Camera 3", "Camera 4", "Camera 5", "Camera 6")
+        camera_combo.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        
+        # Camera Name
+        ttk.Label(setup_grid, text="Camera Name:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.camera_name_var = tk.StringVar()
+        ttk.Entry(setup_grid, textvariable=self.camera_name_var).grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        
+        # Configure grid columns to expand
+        setup_grid.columnconfigure(1, weight=1)
+        setup_grid.columnconfigure(3, weight=1)
     
     def _create_technical_info_section(self):
         """Create the technical info section with Size, Type, Move, Equip."""
@@ -198,6 +229,43 @@ class PanelEditor(ttk.Frame):
             'move': move_combo,
             'equip': equip_combo
         }
+    
+    def _create_shot_list_section(self):
+        """Create the section for shot list specific information."""
+        shot_list_frame = ttk.LabelFrame(self.scrollable_frame, text="Shot List Information")
+        shot_list_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Grid for shot list info
+        shot_list_grid = ttk.Frame(shot_list_frame)
+        shot_list_grid.pack(fill="x", padx=10, pady=10)
+        
+        # Shot Time
+        ttk.Label(shot_list_grid, text="Shot Time (min/hrs):").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.shot_time_var = tk.StringVar()
+        ttk.Entry(shot_list_grid, textvariable=self.shot_time_var).grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        
+        # Subject
+        ttk.Label(shot_list_grid, text="Subject:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.subject_var = tk.StringVar()
+        ttk.Entry(shot_list_grid, textvariable=self.subject_var).grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        
+        # Audio Notes
+        ttk.Label(shot_list_grid, text="Audio Notes:").grid(row=2, column=0, sticky="nw", padx=5, pady=5)
+        self.audio_notes_var = tk.StringVar()
+        
+        # Custom styled text widget for audio notes
+        self.audio_notes_entry = tk.Text(shot_list_grid, wrap=tk.WORD, height=3, width=40, 
+                                       bg=self.input_bg_color, fg=self.text_color, insertbackground=self.text_color)
+        self.audio_notes_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        
+        # Connect text widget with StringVar
+        def update_audio_notes_var(event=None):
+            self.audio_notes_var.set(self.audio_notes_entry.get("1.0", "end-1c"))
+        
+        self.audio_notes_entry.bind("<KeyRelease>", update_audio_notes_var)
+        
+        # Configure grid columns to expand
+        shot_list_grid.columnconfigure(1, weight=1)
     
     def _create_action_info_section(self):
         """Create the action information section."""
@@ -520,6 +588,13 @@ class PanelEditor(ttk.Frame):
         else:
             self.current_panel.vfx = ""
         
+        # Set new shot list fields
+        self.current_panel.setup_number = self.setup_number_var.get() or "1"
+        self.current_panel.camera_name = self.camera_name_var.get()
+        self.current_panel.shot_time = self.shot_time_var.get()
+        self.current_panel.subject = self.subject_var.get()
+        self.current_panel.audio_notes = self.audio_notes_entry.get("1.0", "end-1c")
+        
         # Notify about the update
         if self.on_panel_update:
             self.on_panel_update(self.current_panel)
@@ -553,6 +628,17 @@ class PanelEditor(ttk.Frame):
         self.action_var.set(panel.action)
         self.bgd_var.set(panel.bgd)
         self.bgd_notes_var.set(panel.bgd_notes)
+        
+        # Set new shot list fields
+        self.setup_number_var.set(panel.setup_number if hasattr(panel, 'setup_number') else "1")
+        self.camera_name_var.set(panel.camera_name if hasattr(panel, 'camera_name') else "")
+        self.shot_time_var.set(panel.shot_time if hasattr(panel, 'shot_time') else "")
+        self.subject_var.set(panel.subject if hasattr(panel, 'subject') else "")
+        
+        # Set audio notes
+        self.audio_notes_entry.delete("1.0", "end")
+        if hasattr(panel, 'audio_notes') and panel.audio_notes:
+            self.audio_notes_entry.insert("1.0", panel.audio_notes)
         
         # Toggle background notes visibility
         self._toggle_bgd_notes()
